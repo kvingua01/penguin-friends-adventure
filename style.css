@@ -1,0 +1,404 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: #071822;
+  color: #edf6ee;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top, #204657, #071822 75%);
+}
+main {
+  max-width: 1080px;
+  margin: auto;
+  padding: 24px 22px 30px;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: #9ccbc8;
+}
+h1 {
+  font:
+    normal clamp(24px, 3.7vw, 38px) Georgia,
+    serif;
+  margin: 10px 0 22px;
+}
+.version {
+  font-size: 10px;
+  border: 1px solid #54727c;
+  color: #a6d5cf;
+  padding: 10px;
+  white-space: nowrap;
+}
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 13px 16px;
+  background: #102b39;
+  border: 1px solid #4b707b;
+}
+.hud > div:first-child {
+  flex: 1;
+}
+.hud span,
+.hud strong {
+  display: block;
+}
+.hud > div:first-child span {
+  font-size: 9px;
+  color: #b6cfd0;
+  letter-spacing: 2px;
+  margin-bottom: 5px;
+}
+.hud strong {
+  font-size: 13px;
+  color: #f8dc9e;
+}
+.health {
+  width: 190px;
+}
+.health span {
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.meter {
+  height: 7px;
+  background: #071c2c;
+}
+.meter div {
+  background: #91c9a9;
+  height: 100%;
+  transition: width 0.2s;
+}
+button {
+  border: 1px solid #54747f;
+  background: #153645;
+  color: #eff7ed;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  touch-action: manipulation;
+}
+button:hover {
+  background: #255362;
+  border-color: #e8d29e;
+}
+button:focus-visible {
+  outline: 3px solid #ffdb8b;
+  outline-offset: 3px;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+kbd {
+  font: inherit;
+  color: #cfb98b;
+}
+#stage {
+  position: relative;
+  border: 1px solid #547984;
+  border-top: 0;
+  background: #102d3e;
+  box-shadow: 0 18px 60px #0005;
+}
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: pixelated;
+  outline: none;
+}
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #041522dc;
+  padding: 18px;
+  overflow: auto;
+}
+.overlay[hidden],
+.dialogue[hidden],
+[hidden] {
+  display: none !important;
+}
+.panel {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 25px;
+  border: 1px solid #6d9b9f;
+  background: #0e2938;
+  box-shadow: 7px 7px #0003;
+}
+.panel h2 {
+  font:
+    normal 30px Georgia,
+    serif;
+  color: #f5e5ba;
+  margin: 6px 0 16px;
+}
+.panel p {
+  font-size: 12px;
+  line-height: 1.75;
+  color: #c2d9d9;
+}
+.panel .eyebrow {
+  color: #b1cfc9;
+}
+.panel .buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 20px;
+}
+.panel button.primary {
+  background: #e2c88e;
+  color: #183542;
+  border-color: #e2c88e;
+}
+.panel .item {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid #3b6471;
+  font-size: 12px;
+}
+.panel small {
+  font-size: 10px;
+  color: #adcbcd;
+  line-height: 1.6;
+  display: block;
+}
+.dialogue {
+  position: absolute;
+  bottom: 18px;
+  left: 20px;
+  right: 20px;
+  background: #0b2333f7;
+  border: 2px solid #8bbfc0;
+  padding: 18px 24px;
+  box-shadow: 5px 5px #0004;
+}
+.dialogue strong {
+  color: #ffe1a1;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.dialogue p {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 10px 0;
+  white-space: pre-line;
+}
+.dialogue button {
+  border: 0;
+  padding: 4px 0;
+  background: none;
+  color: #b4d9d3;
+  font-size: 11px;
+}
+.objective {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 13px 17px;
+  border: 1px solid #355562;
+  border-top: 0;
+  background: #0c2533;
+}
+.objective > span {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #94b8be;
+  white-space: nowrap;
+}
+.objective p {
+  margin: 0;
+  font-size: 12px;
+  color: #f4d6a0;
+  line-height: 1.6;
+}
+.under {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  min-height: 50px;
+  color: #bad2d5;
+}
+.under button {
+  font-size: 10px;
+  padding: 7px;
+  white-space: nowrap;
+}
+.touch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 42px);
+  gap: 5px;
+}
+.dpad button {
+  padding: 11px;
+  touch-action: none;
+}
+.dpad button:first-child {
+  grid-column: 2;
+}
+.dpad button:nth-child(2) {
+  grid-column: 1;
+}
+#interactButton {
+  min-height: 55px;
+  min-width: 140px;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 9px;
+  line-height: 1.8;
+  color: #83a4ae;
+  margin-top: 20px;
+}
+#battleControls {
+  border: 1px solid #6b8390;
+  background: #0b2233;
+  padding: 14px;
+}
+#battleMessage {
+  font-size: 12px;
+  color: #f4deb2;
+  line-height: 1.6;
+  min-height: 24px;
+}
+#battleActions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+#battleActions button {
+  flex: 1;
+  border-color: #9e966f;
+  color: #ffe2a4;
+  min-width: 90px;
+}
+.warning {
+  color: #ffc7ae !important;
+}
+@media (max-width: 650px) {
+  main {
+    padding: 14px 8px;
+  }
+  header {
+    display: block;
+  }
+  .version {
+    display: inline-block;
+    margin: 0 0 13px;
+    font-size: 9px;
+  }
+  .hud {
+    gap: 7px;
+    padding: 10px 8px;
+    flex-wrap: wrap;
+  }
+  .hud strong {
+    font-size: 11px;
+  }
+  .health {
+    width: 130px;
+  }
+  .hud button {
+    padding: 7px;
+    font-size: 10px;
+  }
+  .hud kbd {
+    display: none;
+  }
+  .objective {
+    gap: 10px;
+    padding: 10px;
+  }
+  .objective > span {
+    font-size: 8px;
+  }
+  .objective p {
+    font-size: 10px;
+  }
+  .dialogue {
+    bottom: 7px;
+    left: 7px;
+    right: 7px;
+    padding: 10px 13px;
+  }
+  .dialogue p {
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 6px 0;
+  }
+  .dialogue strong {
+    font-size: 10px;
+  }
+  .panel {
+    padding: 14px;
+  }
+  .panel h2 {
+    font-size: 23px;
+  }
+  .panel p {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .panel .buttons {
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .panel button {
+    font-size: 11px;
+    padding: 8px;
+  }
+  footer {
+    display: block;
+  }
+  .under {
+    font-size: 10px;
+  }
+  .overlay {
+    padding: 8px;
+  }
+  .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+  }
+  #battleControls {
+    padding: 10px;
+  }
+  #battleMessage {
+    font-size: 11px;
+  }
+}
