@@ -28,17 +28,21 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 
 Rest lanterns restore full health, save the game, and provide one fish if the entire inventory is empty. Chests and battle rewards supply additional food. Defeat returns you to the exploration checkpoint before that battle, restores consumed supplies and health, and guarantees at least two fish.
 
-Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Only exploration state is saved; reloading during combat resumes the previous exploration checkpoint.
+Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves retain their room where possible, and their coordinates are migrated to the larger geometry while keeping story flags and inventory. Only exploration state is saved; reloading during combat resumes the previous exploration checkpoint.
 
-## Expanded world and combat
+## Scrolling world, puzzles, and combat
 
-There are 48 authored, connected rooms: 10 in Frostbell Island, 10 in Boonona Bay, 12 across Quiet Cove and the Sea Gate, and 16 across the Tidal Halls and Royal Halls. Each region has a room graph with backtracking, optional branches, named locations, journals, supplies, rest points, and encounters. The Drowned Archive lantern and Floodworks sluice wheel open their respective passages.
+There are 48 authored, connected, scrolling rooms: 10 in Frostbell Island, 10 in Boonona Bay, 12 across Quiet Cove and the Sea Gate, and 16 across the Tidal Halls and Royal Halls. Each region has a room graph with backtracking, optional branches, named locations, journals, supplies, rest points, and encounters. The Drowned Archive lantern and Floodworks sluice wheel open their respective passages.
+
+Rooms range from 1536×960 to 1920×1248 world pixels. The 960×576 viewport follows Flippy horizontally and vertically, without enlarging characters or adding rooms. Flippy faces the direction of movement and keeps that facing when stopped. The local minimap shows the camera window, player, puzzle area, and exits.
+
+Eight puzzles are distributed across the existing rooms: three push-block challenges, three ordered-switch challenges, and two path sequences. Read the left pedestal for hints; use the right pedestal to reset an unsolved puzzle. Mistakes do not cost health. Puzzle progress and solved mechanisms are saved.
 
 Scenery includes animated snow and sea ripples, jungle fireflies, crystal glows, footsteps, shaded character sprites, distinct enemy silhouettes, lantern lighting, bookshelves, huts, campfires, and original kingdom interiors. The minimap tracks rooms as you visit them; M opens the larger room journal.
 
-Enemies choose from different attacks, avoiding their last two moves. Twelve attack types include aimed volleys, falling icicles, fans, tidal walls, spirals, curling pearls, rings, crosscurrents, ricocheting shells, explosive stars, warning beams, and orca rushes. Gold warning lanes are safe until the attack fires.
+Monsters have 39 named signature attacks across disjoint, enemy-specific sets. Snowcap Crabs use pincers, drifting frost, and burrowing claws; Boonona Bandits use ballistic seeds, rolling coconuts, and vines; Reef Nibblers use schooling fish, closing jaws, and splitting bubbles; Storm Gulls use feathers, dives, and wind; Sentries use spears, shields, and searchlights. Each boss has its own additional set of mechanics. Later phases combine only that boss’s own attacks. Gold warning lanes are safe until the attack fires. The King’s Restless Edict requires actual heart movement: holding a direction against a wall does not count.
 
-Bosses have substantially increased health and damage. Below 65% health, they change patterns halfway through an attack turn. Below 30%, attack speed and damage increase, and additional beams mix into the patterns. The King has 650 health and ten available attack types. The parents remain a gentler tutorial, with ACT and FLEE preserved. Assist mode is still optional.
+Bosses have substantially increased health and damage. Below 65% health, they change patterns halfway through an attack turn. Below 30%, attack speed and damage increase, and additional signature moves mix into the patterns. The King has 650 health and five royal signature attacks. The parents remain a gentler tutorial, with ACT and FLEE preserved. Assist mode is still optional.
 
 ## Story route
 
@@ -47,7 +51,7 @@ Bosses have substantially increased health and damage. Below 65% health, they ch
 3. **Quiet Cove / Sea Gate:** Slippy is captured. Ask Pippy for help, sail to the gate, defeat Captain Undertow, and enter the kingdom.
 4. **Tidal Halls / Throne Room:** defeat the Pearl and Tide wardens, use both seals to enter the throne room, defeat King Orca, and free Slippy from the cage for the ending.
 
-Enemies are visible encounters: approach and interact to fight. Victory or a successful escape clears that encounter from the save. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
+Regular fights trigger automatically after sufficient walking in unsafe areas; E is not required. Standing still never rolls a battle. Villages, homes, camps, and puzzle areas are safe. Doorways and NPCs have encounter-free approach space. A time and walking-distance cooldown separates fights. Bosses trigger on approach; the parents’ tutorial begins through their story conversation. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
 
 ## Validation
 
@@ -63,7 +67,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Five browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Nine browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 

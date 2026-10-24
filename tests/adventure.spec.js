@@ -19,6 +19,44 @@ async function interactWith(page, id) {
   }, id);
   await flush(page);
 }
+async function solveRoomPuzzle(page) {
+  await page.evaluate(() => {
+    const r = currentRoom(),
+      p = r.puzzle,
+      ps = puzzleState(r),
+      b = puzzleBoard(r);
+    if (!p) throw Error("No puzzle in " + r.id);
+    if (p.type === "sequence")
+      for (const rune of p.order) interactPuzzle({ action: "rune", rune });
+    if (p.type === "path")
+      for (const [x, y] of p.path) {
+        state.x = b.x + (x + 0.5) * 64;
+        state.y = b.y + (y + 0.5) * 64;
+        updatePuzzle(0.01, 0, 0);
+      }
+    if (p.type === "push") {
+      const moves =
+        r.id === "g4"
+          ? [
+              [0, -1],
+              [0, -1],
+              [1, 0],
+              [1, 0],
+            ]
+          : [
+              [1, 0],
+              [1, 0],
+            ];
+      for (const [dx, dy] of moves) {
+        state.x = b.x + (ps.block[0] + 0.5) * 64 - dx * 40;
+        state.y = b.y + (ps.block[1] + 0.5) * 64 - dy * 40;
+        updatePuzzle(0.3, dx, dy);
+      }
+    }
+    if (!state.flags[p.id]) throw Error("Puzzle did not solve: " + r.id);
+  });
+  await flush(page);
+}
 async function go(page, id) {
   const route = await page.evaluate((id) => {
     const q = [[state.room]],
@@ -130,7 +168,7 @@ test("48 connected rooms, safe door arrivals, reachable interactions, and workin
   });
   await interactWith(page, "k4");
   expect(await page.evaluate(() => state.room)).toBe("k3");
-  await interactWith(page, "archive-lamp");
+  await solveRoomPuzzle(page);
   await interactWith(page, "k4");
   expect(await page.evaluate(() => state.room)).toBe("k4");
   await page.evaluate(() => {
@@ -138,7 +176,7 @@ test("48 connected rooms, safe door arrivals, reachable interactions, and workin
   });
   await interactWith(page, "k7");
   expect(await page.evaluate(() => state.room)).toBe("k6");
-  await interactWith(page, "sluice-wheel");
+  await solveRoomPuzzle(page);
   await interactWith(page, "k7");
   expect(await page.evaluate(() => state.room)).toBe("k7");
 });
@@ -186,11 +224,11 @@ test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and e
   await win(page, "gate");
   await interactWith(page, "region");
   await go(page, "k3");
-  await interactWith(page, "archive-lamp");
+  await solveRoomPuzzle(page);
   await go(page, "k4");
   await win(page, "key1");
   await go(page, "k6");
-  await interactWith(page, "sluice-wheel");
+  await solveRoomPuzzle(page);
   await go(page, "k8");
   await win(page, "key2");
   await go(page, "k11");
@@ -218,6 +256,8 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
       mode = "world";
       state.hp = 120;
       startBattle(type, "test-" + type);
+      if (movePools[type].some((id) => !id.startsWith(type + ".")))
+        failures.push(type + " borrows another monster’s move");
       const played = [];
       for (let turn = 0; turn < 8; turn++) {
         battle.hp = battle.maxHp * (turn < 3 ? 0.95 : turn < 6 ? 0.5 : 0.2);
@@ -371,4 +411,255 @@ test("game assets load and repository files stay private", async ({
     expect((await request.get(asset)).status()).toBe(200);
   for (const file of ["/server.js", "/package.json", "/.git/config"])
     expect((await request.get(file)).status()).toBe(404);
+});
+
+test("Flippy turns in all four directions and camera follows on both axes without zooming sprites", async ({
+  page,
+}) => {
+  await begin(page);
+  await page.locator("#game").focus();
+  for (const [key, facing] of [
+    ["d", "right"],
+    ["w", "up"],
+    ["a", "left"],
+    ["s", "down"],
+  ]) {
+    await page.keyboard.down(key);
+    await page.waitForTimeout(90);
+    await page.keyboard.up(key);
+    expect(await page.evaluate(() => state.facing)).toBe(facing);
+  }
+  const before = await page.evaluate(() => ({ ...camera }));
+  await page.keyboard.down("d");
+  await page.keyboard.down("s");
+  await page.waitForTimeout(400);
+  await page.keyboard.up("d");
+  await page.keyboard.up("s");
+  const after = await page.evaluate(() => ({ ...camera }));
+  expect(after.x).toBeGreaterThan(before.x);
+  expect(after.y).toBeGreaterThan(before.y);
+  const result = await page.evaluate(() => {
+    const r = currentRoom();
+    const sizes = Object.values(WORLD.rooms).every(
+      (room) => room.width > W && room.height > H,
+    );
+    placePlayer(r.width - 170, r.height - 170);
+    updateCamera(1, true);
+    return {
+      sizes,
+      x: camera.x,
+      y: camera.y,
+      width: canvas.width,
+      height: canvas.height,
+      maxX: r.width - W,
+      maxY: r.height - H,
+    };
+  });
+  expect(result.sizes).toBe(true);
+  expect(result.x).toBeGreaterThan(0);
+  expect(result.y).toBeGreaterThan(0);
+  expect(result.x).toBeLessThanOrEqual(result.maxX);
+  expect(result.y).toBeLessThanOrEqual(result.maxY);
+  expect([result.width, result.height]).toEqual([960, 576]);
+});
+
+test("walking triggers random fights with no E, villages and idle time stay safe, and recovery has a cooldown", async ({
+  page,
+}) => {
+  await begin(page);
+  await page.evaluate(() => {
+    state.room = "h2";
+    state.map = 0;
+    const r = currentRoom();
+    placePlayer(r.width / 2, r.height / 2);
+    state.encounterDistance = 5;
+    state.encounterGrace = 0;
+    updateCamera(1, true);
+  });
+  await page.locator("#game").focus();
+  await page.keyboard.down("d");
+  await page.waitForTimeout(130);
+  await page.keyboard.up("d");
+  expect(await page.evaluate(() => mode)).toBe("battle");
+  expect(await page.evaluate(() => battle.type)).toBe("snowcrab");
+  await page.evaluate(() => {
+    battle.damageDealt = battle.maxHp * 0.4;
+    finishBattle("flee");
+    battle.done();
+  });
+  expect(await page.evaluate(() => state.encounterGrace)).toBeGreaterThan(10);
+  await page.keyboard.down("d");
+  await page.waitForTimeout(130);
+  await page.keyboard.up("d");
+  expect(await page.evaluate(() => mode)).toBe("world");
+  await page.evaluate(() => {
+    state.room = "h1";
+    state.map = 0;
+    const r = currentRoom();
+    placePlayer(r.width / 2, r.height / 2);
+    state.encounterDistance = 0;
+    state.encounterGrace = 0;
+  });
+  await page.keyboard.down("d");
+  await page.waitForTimeout(150);
+  await page.keyboard.up("d");
+  expect(await page.evaluate(() => mode)).toBe("world");
+  await page.evaluate(() => {
+    state.room = "h2";
+    state.encounterGrace = 0;
+    state.encounterDistance = 5;
+  });
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => mode)).toBe("world");
+  expect(await page.evaluate(() => state.encounterDistance)).toBe(5);
+  await page.evaluate(() => {
+    state.room = "b9";
+    state.map = 1;
+    Object.assign(state.flags, { fruit1: true, fruit2: true, fruit3: true });
+    const boss = targets().find((n) => n.kind === "boss");
+    state.x = boss.x - 65;
+    state.y = boss.y;
+    state.bossGrace = 0;
+  });
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => mode)).toBe("battle");
+  expect(await page.evaluate(() => battle.type)).toBe("baby");
+});
+
+test("all eight puzzles solve through their mechanics, reset safely, and reject wrong path and rune choices", async ({
+  page,
+}) => {
+  await begin(page);
+  const puzzleRooms = await page.evaluate(() =>
+    Object.values(WORLD.rooms)
+      .filter((r) => r.puzzle)
+      .map((r) => r.id),
+  );
+  expect(puzzleRooms).toHaveLength(8);
+  for (const id of puzzleRooms) {
+    await page.evaluate((id) => {
+      state.room = id;
+      state.map = WORLD.rooms[id].region;
+      const p = currentRoom().puzzle;
+      delete state.flags[p.id];
+      delete state.puzzles[p.id];
+      mode = "world";
+    }, id);
+    await solveRoomPuzzle(page);
+  }
+  await page.evaluate(() => {
+    state.room = "h6";
+    state.map = 0;
+    delete state.flags["winter-bell"];
+    delete state.puzzles["winter-bell"];
+    interactPuzzle({ action: "rune", rune: 0 });
+  });
+  await flush(page);
+  expect(await page.evaluate(() => puzzleState().progress)).toBe(0);
+  await page.evaluate(() => {
+    state.room = "b4";
+    state.map = 1;
+    delete state.flags["river-stones"];
+    delete state.puzzles["river-stones"];
+    const b = puzzleBoard();
+    state.x = b.x + 32;
+    state.y = b.y + 32;
+    updatePuzzle(0.01, 0, 0);
+  });
+  expect(await page.evaluate(() => puzzleState().progress)).toBe(0);
+  expect(await page.evaluate(() => state.hp)).toBe(120);
+  await page.evaluate(() => {
+    state.room = "g4";
+    state.map = 3;
+    delete state.flags["drain-lift"];
+    delete state.puzzles["drain-lift"];
+    const ps = puzzleState();
+    ps.block = [0, 0];
+    interactPuzzle({ action: "reset" });
+  });
+  await flush(page);
+  expect(await page.evaluate(() => puzzleState().block)).toEqual([2, 3]);
+});
+
+test("the King’s movement rule uses actual motion and push blocks work with held movement keys", async ({
+  page,
+}) => {
+  await begin(page);
+  const rule = await page.evaluate(() => {
+    startBattle("king", "rule-check");
+    beginDodge();
+    battle.attack = "king.decree";
+    battle.secondary = "king.decree";
+    battle.spawnTime = -999;
+    battle.invulnerable = 0;
+    state.hp = 120;
+    keys.add("d");
+    bullet(battle.heart.x, battle.heart.y, 0, 0, 8, "seal", { rule: "still" });
+    updateBattle(0.04);
+    const moving = state.hp;
+    battle.bullets = [];
+    battle.heart.x = arena.x + arena.w - 8;
+    battle.invulnerable = 0;
+    bullet(battle.heart.x, battle.heart.y, 0, 0, 8, "seal", { rule: "still" });
+    updateBattle(0.04);
+    const againstWall = state.hp;
+    keys.clear();
+    battle = null;
+    mode = "world";
+    $("battleControls").hidden = true;
+    return { moving, againstWall };
+  });
+  expect(rule.moving).toBe(120);
+  expect(rule.againstWall).toBeLessThan(120);
+  await page.evaluate(() => {
+    state.room = "k3";
+    state.map = 4;
+    delete state.flags["archive-lamp"];
+    delete state.puzzles["archive-lamp"];
+    const b = puzzleBoard(),
+      ps = puzzleState();
+    placePlayer(
+      b.x + (ps.block[0] + 0.5) * 64 - 44,
+      b.y + (ps.block[1] + 0.5) * 64,
+    );
+    updateCamera(1, true);
+  });
+  await page.locator("#game").focus();
+  await page.keyboard.down("d");
+  await page.waitForTimeout(900);
+  await page.keyboard.up("d");
+  expect(await page.evaluate(() => state.flags["archive-lamp"])).toBe(true);
+  await flush(page);
+  await page.evaluate(() => {
+    state.room = "g4";
+    state.map = 3;
+    const ps = puzzleState();
+    ps.block = [2, 2];
+    save();
+  });
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Continue adventure", exact: true })
+    .click();
+  expect(await page.evaluate(() => puzzleState().block)).toEqual([2, 2]);
+  await page.evaluate(() => {
+    const old = fresh();
+    old.version = 2;
+    old.room = "k3";
+    old.map = 4;
+    old.x = 480;
+    old.y = 350;
+    old.flags = { key1: true };
+    delete old.puzzles;
+    mode = "title";
+    localStorage.setItem(SAVE_KEY, JSON.stringify(old));
+  });
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Continue adventure", exact: true })
+    .click();
+  expect(await page.evaluate(() => state.version)).toBe(3);
+  expect(await page.evaluate(() => state.room)).toBe("k3");
+  expect(await page.evaluate(() => state.flags.key1)).toBe(true);
+  expect(await page.evaluate(() => state.x)).toBeGreaterThan(480);
 });
