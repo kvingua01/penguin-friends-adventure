@@ -1,0 +1,408 @@
+"use strict";
+// Authored room graph. Every doorway is paired; chapter crossings stay story-gated.
+window.PENGUIN_WORLD = (() => {
+  const rooms = {};
+  const starts = ["h0", "b0", "c0", "g0", "k0", "t0"];
+  const notes = {
+    h0: "A little home, a big horizon. Slippy waits east in Lantern Square.",
+    h1: "The forest road runs east to the harbor. Home is west. Moss’s shop is north; the frozen lake is south.",
+    h2: "Tall trees shelter the old route. North: Crystal Grotto. East: Windbreak Ridge.",
+    h3: "Moss keeps extra supplies for travelers. A thoughtful gift can be more useful than a shiny coin.",
+    h4: "The lake remembers every footstep until the next snowfall.",
+    h5: "East: the watchtower and harbor. South: the last warm camp.",
+    h6: "Ring the old bell. People at the lake say it has been silent for years.",
+    h7: "Beyond this tower, the ocean stops looking like a picture and starts looking like a road.",
+    h8: "An old explorer wrote: “Pack food. Leave a note. Come home with stories.”",
+    h9: "BOONONA FERRY · Have you spoken to your parents? The sea can wait for a goodbye.",
+    b0: "Welcome to Boonona Bay. Village east. There are three fruit groves beyond the village.",
+    b1: "North: Sunleaf Grove. East: Riverwalk. Slippy has already declared this the best island.",
+    b2: "The first grove grows where the sun touches the leaves. Canopy Walk is east.",
+    b3: "Old carvings describe a small orca learning how to make waves.",
+    b4: "Follow the river south for fruit, or head east toward Golden Orchard and the eastern beach.",
+    b5: "Waterfall fruit grows sweeter than the rest. At least, that is what the waterfall says.",
+    b6: "The ocean once filled these ruins. The walls still hum when the tide turns.",
+    b7: "The final grove. Baby Orca waits beyond the eastern shore.",
+    b8: "Take a breath before the eastern beach. Stock up and save your journey.",
+    b9: "BABY ORCA’S BEACH · Strong currents ahead. A splash is only the beginning.",
+    c0: "Slippy was taken east. Look for a sailor along the broken coast.",
+    c1: "The wreck came from the kingdom. Someone scratched “not every orca agrees” into the wood.",
+    c2: "Even the deepest cave has a sound that leads outside.",
+    c3: "Pippy’s dock is east. A quiet market survives to the south.",
+    c4: "The merchant leaves food for anyone with a friend to find.",
+    c5: "PIPPY’S FERRY · Sea Gate passage. Speak to the captain before boarding.",
+    g0: "The kingdom rises from the sea like a storm that learned to stand still.",
+    g1: "The stairway branches north to the cliffs and east to the barracks.",
+    g2: "A beacon can guide a boat home. It cannot decide who deserves to be rescued.",
+    g3: "Captain Undertow waits east. The old drain lies south.",
+    g4: "You hear a small voice through the pipes: “Flippy will come.”",
+    g5: "SEA GATE · Only the captain can release the lock.",
+    k0: "Two seals open the throne-room door. Pearl in the north. Tide in the south.",
+    k1: "The kingdom’s people have learned to whisper. Pebble has something to tell you.",
+    k2: "The archive lantern controls the pearl chamber. Search the library to the east.",
+    k3: "Light the archive lantern, then enter the pearl chamber to the east.",
+    k4: "The Warden of the Pearl collects beautiful things. He has forgotten why.",
+    k5: "A garden beneath the sea. East: the prison walk. South: the floodworks.",
+    k6: "Turn the sluice wheel here to open the flooded cistern to the east.",
+    k7: "The tide warden guards the chamber beyond the eastern channel.",
+    k8: "TIDE SANCTUM · The tide returns, but never in quite the same way.",
+    k9: "The guards moved Slippy to the throne room. Keep going east.",
+    k10: "Each painting shows the King alone. The empty spaces are the saddest part.",
+    k11: "The door has two hollows: one for a pearl, one for a tide.",
+    t0: "No army. No grand plan. Just you, and the promise you made.",
+    t1: "A faded picture: a little orca, watching other children play from far away.",
+    t2: "Rest here. Stock your bag. The King will not give up his crown easily.",
+    t3: "Every step led here. Slippy is waiting beyond the throne.",
+  };
+  function room(id, name, region, gx, gy, theme, layout = 0) {
+    rooms[id] = {
+      id,
+      name,
+      region,
+      gx,
+      gy,
+      theme,
+      layout,
+      npcs: [],
+      props: [],
+      enemies: [],
+      objects: [],
+      doors: [],
+      note: notes[id],
+    };
+    return rooms[id];
+  }
+  const definitions = [
+    ["h0", "Flippy’s Home", 0, 0, 1, "snowhome"],
+    ["h1", "Lantern Square", 0, 1, 1, "village"],
+    ["h2", "Whisperpine Trail", 0, 2, 1, "forest"],
+    ["h3", "Moss’s Supply Nook", 0, 1, 0, "cabin"],
+    ["h4", "Mirrorfrost Lake", 0, 1, 2, "lake"],
+    ["h5", "Windbreak Ridge", 0, 3, 1, "ridge"],
+    ["h6", "Crystal Grotto", 0, 2, 0, "icecave"],
+    ["h7", "Northwatch Tower", 0, 4, 1, "ruins"],
+    ["h8", "Lastlight Camp", 0, 3, 2, "forest"],
+    ["h9", "Frostbell Harbor", 0, 5, 1, "dock"],
+    ["b0", "Shellwash Landing", 1, 0, 1, "shore"],
+    ["b1", "Boonona Village", 1, 1, 1, "village"],
+    ["b2", "Sunleaf Grove", 1, 1, 0, "jungle"],
+    ["b3", "Canopy Walk", 1, 2, 0, "jungle"],
+    ["b4", "Riverwalk", 1, 2, 1, "river"],
+    ["b5", "Singing Falls", 1, 2, 2, "waterfall"],
+    ["b6", "Sunken Courtyard", 1, 3, 0, "ruins"],
+    ["b7", "Golden Orchard", 1, 3, 1, "jungle"],
+    ["b8", "Firefly Camp", 1, 3, 2, "camp"],
+    ["b9", "Breakwater Beach", 1, 4, 1, "shore"],
+    ["c0", "The Empty Shore", 2, 0, 1, "shore"],
+    ["c1", "Shipwreck Strand", 2, 1, 1, "wreck"],
+    ["c2", "Echo Cave", 2, 1, 0, "cave"],
+    ["c3", "Broken Jetty", 2, 2, 1, "dock"],
+    ["c4", "Moonlit Market", 2, 2, 2, "village"],
+    ["c5", "Pippy’s Mooring", 2, 3, 1, "dock"],
+    ["g0", "Kingdom Landing", 3, 0, 1, "shore"],
+    ["g1", "Saltstone Stair", 3, 1, 1, "ruins"],
+    ["g2", "Beacon Cliff", 3, 1, 0, "ridge"],
+    ["g3", "Guard Barracks", 3, 2, 1, "hall"],
+    ["g4", "The Old Drain", 3, 2, 2, "cave"],
+    ["g5", "The Sea Gate", 3, 3, 1, "gate"],
+    ["k0", "Outer Vestibule", 4, 0, 1, "hall"],
+    ["k1", "Whispering Plaza", 4, 1, 1, "garden"],
+    ["k2", "Pearl Passage", 4, 1, 0, "hall"],
+    ["k3", "The Drowned Archive", 4, 2, 0, "library"],
+    ["k4", "Pearl Reliquary", 4, 3, 0, "sanctum"],
+    ["k5", "The Glass Garden", 4, 2, 1, "garden"],
+    ["k6", "Floodworks", 4, 2, 2, "cistern"],
+    ["k7", "The Silent Cistern", 4, 3, 2, "cistern"],
+    ["k8", "Tide Sanctum", 4, 4, 2, "sanctum"],
+    ["k9", "Prison Walk", 4, 3, 1, "cell"],
+    ["k10", "Gallery of Crowns", 4, 4, 1, "gallery"],
+    ["k11", "The Two-Seal Door", 4, 5, 1, "gate"],
+    ["t0", "The Royal Vestibule", 5, 0, 1, "hall"],
+    ["t1", "Hall of Small Memories", 5, 1, 1, "gallery"],
+    ["t2", "Before the Storm", 5, 2, 1, "sanctum"],
+    ["t3", "Throne of the Sea", 5, 3, 1, "throne"],
+  ];
+  definitions.forEach((d, i) => room(...d, i % 7));
+  function connect(a, d, b, requires = null) {
+    const opposite = { E: "W", W: "E", N: "S", S: "N" };
+    rooms[a].doors.push({ direction: d, to: b, requires });
+    rooms[b].doors.push({ direction: opposite[d], to: a });
+  }
+  const links = [
+    ["h0", "E", "h1"],
+    ["h1", "E", "h2"],
+    ["h1", "N", "h3"],
+    ["h1", "S", "h4"],
+    ["h2", "E", "h5"],
+    ["h2", "N", "h6"],
+    ["h5", "E", "h7"],
+    ["h5", "S", "h8"],
+    ["h7", "E", "h9"],
+    ["b0", "E", "b1"],
+    ["b1", "N", "b2"],
+    ["b2", "E", "b3"],
+    ["b1", "E", "b4"],
+    ["b3", "S", "b4"],
+    ["b3", "E", "b6"],
+    ["b4", "S", "b5"],
+    ["b4", "E", "b7"],
+    ["b6", "S", "b7"],
+    ["b5", "E", "b8"],
+    ["b8", "N", "b7"],
+    ["b7", "E", "b9"],
+    ["c0", "E", "c1"],
+    ["c1", "N", "c2"],
+    ["c1", "E", "c3"],
+    ["c3", "S", "c4"],
+    ["c3", "E", "c5"],
+    ["g0", "E", "g1"],
+    ["g1", "N", "g2"],
+    ["g1", "E", "g3"],
+    ["g3", "S", "g4"],
+    ["g3", "E", "g5"],
+    ["k0", "E", "k1"],
+    ["k1", "N", "k2"],
+    ["k2", "E", "k3"],
+    ["k1", "E", "k5"],
+    ["k5", "S", "k6"],
+    ["k7", "E", "k8"],
+    ["k5", "E", "k9"],
+    ["k9", "E", "k10"],
+    ["k10", "S", "k8"],
+    ["k10", "E", "k11"],
+    ["t0", "E", "t1"],
+    ["t1", "E", "t2"],
+    ["t2", "E", "t3"],
+  ];
+  links.forEach((l) => connect(...l));
+  connect("k3", "E", "k4", "archive-lamp");
+  connect("k6", "E", "k7", "sluice-wheel");
+  for (const id of ["h9", "b9", "c5", "g5", "k11"])
+    rooms[id].doors.push({ direction: "E", to: "region" });
+  // Layout shapes leave all four door approaches open and vary the terrain between rooms.
+  const placements = [
+    [
+      [195, 185],
+      [740, 395],
+      [725, 165],
+      [245, 425],
+    ],
+    [
+      [230, 190],
+      [670, 420],
+      [740, 180],
+    ],
+    [
+      [180, 395],
+      [710, 185],
+      [655, 430],
+    ],
+    [
+      [265, 170],
+      [735, 400],
+      [190, 425],
+    ],
+    [
+      [190, 180],
+      [700, 430],
+      [760, 185],
+    ],
+    [
+      [265, 430],
+      [745, 165],
+      [200, 180],
+    ],
+    [
+      [175, 420],
+      [675, 180],
+      [750, 410],
+    ],
+  ];
+  for (const [i, r] of Object.values(rooms).entries()) {
+    const natural = [
+        "forest",
+        "snowhome",
+        "jungle",
+        "camp",
+        "garden",
+        "village",
+      ].includes(r.theme),
+      cave = ["cave", "icecave"].includes(r.theme),
+      indoor = [
+        "cabin",
+        "hall",
+        "library",
+        "sanctum",
+        "cistern",
+        "cell",
+        "gallery",
+        "throne",
+        "gate",
+      ].includes(r.theme);
+    placements[r.layout].forEach(([x, y], j) =>
+      r.props.push([
+        cave
+          ? "crystal"
+          : natural
+            ? r.region === 0
+              ? "pine"
+              : r.region < 3
+                ? "palm"
+                : "coral"
+            : indoor
+              ? r.theme === "library" || r.theme === "cabin"
+                ? "bookshelf"
+                : r.theme === "gallery"
+                  ? "portrait"
+                  : "pillar"
+              : "rock",
+        x,
+        y,
+      ]),
+    );
+    r.objects.push([
+      "journal",
+      360 + (i % 3) * 110,
+      405 + (i % 2) * 35,
+      "note-" + r.id,
+    ]);
+    if (
+      ![
+        "h0",
+        "h1",
+        "b1",
+        "c5",
+        "g5",
+        "k1",
+        "k4",
+        "k8",
+        "t0",
+        "t1",
+        "t2",
+        "t3",
+      ].includes(r.id) &&
+      i % 2 === 0
+    ) {
+      const enemy =
+        r.region === 0
+          ? "snowcrab"
+          : r.region === 1
+            ? i % 4
+              ? "coconut"
+              : "reef"
+            : r.region === 2
+              ? "gull"
+              : i % 3
+                ? "guard"
+                : "reef";
+      r.enemies.push([enemy, "room-enemy-" + r.id, 600, 315]);
+    }
+    if (i % 5 === 0) r.objects.push(["chest", 260, 375, "room-chest-" + r.id]);
+  }
+  function npc(id, ...n) {
+    rooms[id].npcs.push(n);
+  }
+  function obj(id, ...o) {
+    rooms[id].objects.push(o);
+  }
+  npc("h0", "Mama", 350, 230, "mama");
+  npc("h0", "Papa", 610, 230, "parents");
+  npc("h1", "Slippy", 580, 345, "slippy");
+  npc("h3", "Moss", 550, 240, "moss");
+  npc("b1", "Slippy", 580, 345, "slippy");
+  npc("b3", "Tula", 560, 265, "tula");
+  npc("c4", "Drift", 530, 245, "drift");
+  npc("c5", "Pippy", 650, 250, "pippy");
+  npc("k1", "Pebble", 570, 260, "pebble");
+  npc("k9", "Nim", 565, 235, "nim");
+  const rests = [
+    "h0",
+    "h3",
+    "h8",
+    "h9",
+    "b0",
+    "b1",
+    "b8",
+    "c0",
+    "c4",
+    "c5",
+    "g0",
+    "g4",
+    "g5",
+    "k0",
+    "k1",
+    "k3",
+    "k7",
+    "k11",
+    "t0",
+    "t2",
+  ];
+  rests.forEach((id) => obj(id, "shrine", 245, 350, "rest-" + id));
+  obj("h6", "switch", 480, 220, "winter-bell");
+  obj("g2", "switch", 490, 230, "sea-beacon");
+  obj("k3", "switch", 650, 240, "archive-lamp");
+  obj("k6", "switch", 480, 235, "sluice-wheel");
+  obj("b2", "fruit", 540, 245, "fruit1");
+  obj("b5", "fruit", 540, 245, "fruit2");
+  obj("b7", "fruit", 540, 245, "fruit3");
+  obj("b9", "boss", 665, 285, "baby");
+  obj("g5", "boss", 650, 285, "gate");
+  obj("k4", "boss", 640, 280, "key1");
+  obj("k8", "boss", 640, 280, "key2");
+  obj("t3", "boss", 610, 280, "king");
+  obj("t3", "cage", 805, 320, "slippy-cage");
+  rooms.h0.props.push(["igloo", 480, 170]);
+  rooms.b1.props.push(["hut", 350, 185], ["hut", 680, 170]);
+  rooms.c4.props.push(["hut", 380, 175]);
+  rooms.h8.props.push(["fire", 480, 220]);
+  rooms.b8.props.push(["fire", 480, 220]);
+  rooms.h4.props.push(["pool", 480, 220]);
+  rooms.b5.props.push(["pool", 400, 200]);
+  rooms.c1.props.push(["wreck", 480, 220]);
+  rooms.c5.props.push(["boat", 780, 425]);
+  rooms.g5.props.push(["tower", 730, 160]);
+  rooms.t3.props.push(["throne", 700, 235]);
+  const conversations = {
+    moss: [
+      "You’re heading out? Brave little flippers. Have a fish on the house.",
+      "The world is bigger than this village. Remember the people who make it feel like home.",
+    ],
+    tula: [
+      "I used to think a forest was just a lot of trees. Then I learned everyone in it had a story.",
+      "The waterfall grove is south of Riverwalk. Golden Orchard is east.",
+    ],
+    drift: [
+      "The King took a little penguin through here. He kept saying his friend would come.",
+      "Take this soup. You look like someone who has a promise to keep.",
+    ],
+    nim: [
+      "I heard Slippy through the wall. They moved him toward the throne room.",
+      "I’m not a fighter. But I can tell you this: the King grows reckless when his crown starts to crack.",
+    ],
+  };
+  // Keep tall scenery from hiding characters, doorways, or collectible objects.
+  for (const r of Object.values(rooms)) {
+    const occupants = [
+      ...r.npcs.map((n) => [n[1], n[2]]),
+      ...r.objects.map((o) => [o[1], o[2]]),
+    ];
+    r.props = r.props.filter(([type, x, y]) => {
+      const height = {
+        pine: 108,
+        palm: 100,
+        pillar: 83,
+        tower: 83,
+        bookshelf: 68,
+        portrait: 74,
+        coral: 50,
+      }[type];
+      return (
+        !height ||
+        !occupants.some(
+          ([ox, oy]) =>
+            Math.abs(ox - x) < 52 && oy > y - height - 20 && oy < y + 16,
+        )
+      );
+    });
+  }
+  return { rooms, starts, conversations };
+})();

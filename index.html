@@ -17,7 +17,7 @@
           <div class="eyebrow">A LITTLE PENGUIN. A GREAT BIG WORLD.</div>
           <h1>Penguin Friends Adventure</h1>
         </div>
-        <span class="version">STORY EDITION · FIRST PLAYABLE</span>
+        <span class="version">EXPANDED EDITION · 48 ROOMS</span>
       </header>
       <div class="hud">
         <div>
@@ -28,6 +28,7 @@
           <span id="healthText">FLIPPY · 120 / 120</span>
           <div class="meter"><div id="healthBar"></div></div>
         </div>
+        <button id="mapButton">Map <kbd>M</kbd></button>
         <button id="inventoryButton">Bag <kbd>I</kbd></button
         ><button id="menuButton" aria-label="Open game menu">
           Menu <kbd>Esc</kbd>
@@ -39,7 +40,7 @@
           width="960"
           height="576"
           tabindex="0"
-          aria-label="Penguin Friends Adventure. Move with WASD or arrow keys. Interact with E or Space."
+          aria-label="Penguin Friends Adventure. Move with WASD or arrow keys. Interact with E or Space. Open the room map with M."
         ></canvas>
         <div id="overlay" class="overlay" hidden></div>
         <div
@@ -79,7 +80,7 @@
       <footer>
         <span
           ><kbd>WASD</kbd> / <kbd>Arrows</kbd> move · <kbd>E</kbd> /
-          <kbd>Space</kbd> interact · <kbd>I</kbd> bag ·
+          <kbd>Space</kbd> interact · <kbd>M</kbd> map · <kbd>I</kbd> bag ·
           <kbd>Esc</kbd> menu</span
         ><span
           >Original characters, art & synthesized sound. Made for your
@@ -87,6 +88,7 @@
         >
       </footer>
     </main>
+    <script src="/world.js"></script>
     <script src="/game.js"></script>
   </body>
 </html>

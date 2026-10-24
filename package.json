@@ -4,12 +4,16 @@
   "private": true,
   "description": "A four-chapter browser RPG about Flippy and his friends",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "playwright test"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }
