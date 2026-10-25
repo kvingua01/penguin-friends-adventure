@@ -663,3 +663,99 @@ test("the King’s movement rule uses actual motion and push blocks work with he
   expect(await page.evaluate(() => state.flags.key1)).toBe(true);
   expect(await page.evaluate(() => state.x)).toBeGreaterThan(480);
 });
+
+test("every non-tutorial attack threatens stationary hearts across all nine arena zones", async ({
+  page,
+}) => {
+  await begin(page);
+  const failures = await page.evaluate(() => {
+    const failures = [];
+    keys.clear();
+    state.assist = false;
+    for (const attack of Object.keys(ATTACKS).filter(
+      (id) => !id.startsWith("parents."),
+    )) {
+      const type = attack.split(".")[0];
+      for (let row = 0; row < 3; row++)
+        for (let col = 0; col < 3; col++) {
+          mode = "world";
+          state.hp = 120;
+          startBattle(type, "coverage");
+          beginDodge();
+          battle.attack = attack;
+          battle.secondary = attack;
+          battle.phaseLevel = 1;
+          const x = arena.x + 22 + (col * (arena.w - 44)) / 2,
+            y = arena.y + 22 + (row * (arena.h - 44)) / 2;
+          let hit = false;
+          for (
+            let frame = 0;
+            frame < Math.ceil(battle.duration / 0.04);
+            frame++
+          ) {
+            battle.heart = { x, y };
+            battle.invulnerable = 0;
+            state.hp = 120;
+            updateBattle(0.04);
+            if (state.hp < 120) hit = true;
+          }
+          if (!hit)
+            failures.push(
+              attack +
+                " leaves zone " +
+                col +
+                "," +
+                row +
+                " safe for the full turn",
+            );
+        }
+    }
+    return failures;
+  });
+  expect(failures).toEqual([]);
+});
+
+test("pursuit warnings leave time to escape and tutorial attacks do not add pursuit", async ({
+  page,
+}) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    mode = "world";
+    startBattle("snowcrab", "warning-escape");
+    beginDodge();
+    battle.phaseTime = 2;
+    battle.zoneTime = 2;
+    battle.pressureClock = 2;
+    const x = 480,
+      y = 420;
+    battle.heart = { x, y };
+    battle.lastZone = 1 + 3;
+    updateBattlePressure(0.01);
+    const h = battle.hazards.find((h) => h.kind === "beam" && h.x === x);
+    if (!h) return { warning: false };
+    const warning = h.warning;
+    state.hp = 120;
+    battle.bullets = [];
+    battle.spawnTime = -999;
+    battle.zoneTime = -999;
+    keys.add("d");
+    for (let i = 0; i < 24; i++) updateBattle(0.04);
+    keys.clear();
+    const escaped = state.hp === 120;
+    mode = "world";
+    startBattle("parents", "tutorial-pressure");
+    beginDodge();
+    battle.phaseTime = 2;
+    battle.zoneTime = 99;
+    battle.pressureClock = 99;
+    updateBattlePressure(0.01);
+    return {
+      warning: warning >= 0.7,
+      escaped,
+      tutorialHazards: battle.hazards.length,
+    };
+  });
+  expect(result.warning).toBe(true);
+  expect(result.escaped).toBe(true);
+  expect(result.tutorialHazards).toBe(0);
+});

@@ -44,6 +44,14 @@ Monsters have 39 named signature attacks across disjoint, enemy-specific sets. S
 
 Bosses have substantially increased health and damage. Below 65% health, they change patterns halfway through an attack turn. Below 30%, attack speed and damage increase, and additional signature moves mix into the patterns. The King has 650 health and five royal signature attacks. The parents remain a gentler tutorial, with ACT and FLEE preserved. Assist mode is still optional.
 
+### Harder combat update
+
+Normal-mode projectiles are faster and attack volleys arrive more frequently. Pincers sweep toward the center; seed arcs start across the box; rolling coconuts enter at different heights; jaw openings move; shield waves alternate sides; and harpoons travel across the box before returning. Crown attacks threaten both axes even before the King’s later phases.
+
+Staying in the same ninth of the arena for too long triggers a warned, enemy-specific pursuit attack. Crabs crack the ice beneath you, gulls dive at your lane, reef monsters chase with fish, and bosses pursue with their own weapons. Moving between regions resets that pursuit timer. Parents’ tutorial attacks remain gentler, and Assist mode keeps slower projectiles and longer warnings. Damage and boss health were not inflated for this update.
+
+The coverage regression checks each of the 36 non-tutorial attack patterns against stationary hearts in nine different positions (324 cases), plus a test that a warned pursuit attack can be escaped. These tests catch permanent safe corners; human playtesting is still needed for difficulty balance.
+
 ## Story route
 
 1. **Frostbell Island:** meet Slippy in Lantern Square, return home to challenge the parents (ACT or FIGHT, then FLEE or win), follow the forest road through Windbreak Ridge, and leave from Frostbell Harbor.
@@ -67,7 +75,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Nine browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Eleven browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 

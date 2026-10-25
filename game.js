@@ -1275,6 +1275,9 @@ function beginDodge() {
   b.spawnTime = 0;
   b.turn++;
   b.volley = 0;
+  b.pressureClock = 0;
+  b.zoneTime = 0;
+  b.lastZone = -1;
   b.bullets = [];
   b.hazards = [];
   b.phaseLevel =
@@ -1420,7 +1423,7 @@ const ATTACKS = Object.fromEntries(
     [
       "reef.jaws",
       "Closing Jaws",
-      "Stay between the upper and lower teeth.",
+      "Follow the moving opening between the jaws.",
       1.3,
     ],
     [
@@ -1563,7 +1566,12 @@ const ATTACKS = Object.fromEntries(
       "Find the opening in the rising tide.",
       1.05,
     ],
-    ["key2.surge", "High Water", "Leave the flooding lower lane.", 1.3],
+    [
+      "key2.surge",
+      "High Water",
+      "Keep moving out of the rising flood lanes.",
+      1.3,
+    ],
     [
       "king.crown",
       "Crown of the Deep",
@@ -1637,7 +1645,7 @@ function spawnPattern(pattern = battle.attack) {
     n = b.volley,
     rate = state.assist ? 0.7 : 1,
     speed =
-      (b.parents ? 76 : b.boss ? 139 : 111) *
+      (b.parents ? 76 : b.boss ? 190 : 155) *
       (1 + (b.phaseLevel - 1) * 0.1) *
       rate,
     L = a.x,
@@ -1659,7 +1667,7 @@ function spawnPattern(pattern = battle.attack) {
   };
   switch (pattern) {
     case "snowcrab.claws": {
-      const width = 24 + (n % 3) * 16;
+      const width = 22 + ((n * 61) % (a.w / 2 - 37));
       hazard("beam", L + width, T, 29, a.h, 0.9, 0.3);
       hazard("beam", R - width, T, 29, a.h, 0.9, 0.3);
       break;
@@ -1685,25 +1693,25 @@ function spawnPattern(pattern = battle.attack) {
     case "coconut.seeds": {
       for (let i = 0; i < 4; i++)
         bullet(
-          n % 2 ? R - 12 : L + 12,
-          T + 75,
-          (n % 2 ? -1 : 1) * (68 + i * 21) * rate,
-          -100 + i * 20,
+          L + 22 + ((n * 83 + i * 107) % (a.w - 44)),
+          T + 70,
+          (i - 1.5) * 52 * rate,
+          -65 + i * 10,
           6,
           "seed",
-          { gravity: 170 * rate },
+          { gravity: 110 * rate },
         );
       break;
     }
     case "coconut.roll":
       bullet(
         n % 2 ? L + 12 : R - 12,
-        B - 24,
+        T + 30 + ((n * 53) % (a.h - 60)),
         (n % 2 ? 1 : -1) * speed,
-        -72,
+        n % 2 ? -35 : 35,
         10,
         "shell",
-        { bounces: 0, gravity: 95 },
+        { bounces: 0, gravity: 45 },
       );
       break;
     case "coconut.vines":
@@ -1723,11 +1731,12 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "reef.jaws": {
-      const teeth = n % 2 ? 25 : 40;
-      hazard("rush", L, T, a.w, teeth, 0.9, 0.35);
-      hazard("rush", L, B - teeth, a.w, teeth, 0.9, 0.35);
-      for (let i = 0; i < 2; i++)
-        bullet(L + 100 + i * 220, T + teeth + 8, 0, speed * 0.7, 5, "tooth");
+      const opening = T + 50 + ((n * 37) % (a.h - 100));
+      const upper = Math.max(8, opening - T - 36),
+        lower = Math.min(B - 8, opening + 36);
+      hazard("rush", L, T, a.w, upper, 0.85, 0.4);
+      hazard("rush", L, lower, a.w, B - lower, 0.85, 0.4);
+      aim(n % 2 ? L - 10 : R + 10, opening, 2, 0.18, "tooth");
       break;
     }
     case "reef.bubbles": {
@@ -1771,7 +1780,7 @@ function spawnPattern(pattern = battle.attack) {
       for (let i = 0; i < 3; i++)
         bullet(
           n % 2 ? L - 10 : R + 10,
-          T + 35 + i * 75,
+          T + 18 + ((n * 47 + i * 71) % (a.h - 36)),
           (n % 2 ? 1 : -1) * speed,
           12,
           5,
@@ -1792,7 +1801,15 @@ function spawnPattern(pattern = battle.attack) {
     case "guard.shield": {
       const gap = T + 40 + ((n * 47) % (a.h - 80));
       for (let y = T + 15; y < B; y += 26)
-        if (Math.abs(y - gap) > 35) bullet(L - 9, y, speed, 0, 9, "shield");
+        if (Math.abs(y - gap) > 32)
+          bullet(
+            n % 2 ? L - 9 : R + 9,
+            y,
+            (n % 2 ? 1 : -1) * speed,
+            0,
+            9,
+            "shield",
+          );
       break;
     }
     case "guard.watch":
@@ -1837,20 +1854,20 @@ function spawnPattern(pattern = battle.attack) {
     case "baby.splash": {
       for (let i = 0; i < 5; i++)
         bullet(
-          480 + Math.sin(n) * 100,
-          T + 50,
+          L + 55 + ((n * 113) % (a.w - 110)),
+          T + 55,
           (i - 2) * 40 * rate,
-          -90,
+          -65,
           7,
           "water",
-          { gravity: 155 * rate },
+          { gravity: 105 * rate },
         );
       break;
     }
     case "baby.spout": {
       for (let i = -2; i <= 2; i++)
         bullet(
-          L + 70 + ((n * 79) % (a.w - 140)),
+          L + 25 + ((n * 79) % (a.w - 50)),
           B + 8,
           i * 25,
           -speed,
@@ -1882,7 +1899,7 @@ function spawnPattern(pattern = battle.attack) {
         2,
         0.14,
         "spear",
-        { returnAt: 1.25 },
+        { returnAt: 2.5 },
       );
       break;
     case "gate.march": {
@@ -1907,7 +1924,7 @@ function spawnPattern(pattern = battle.attack) {
         [L, B, 1, -1],
         [R, B, -1, -1],
       ])
-        bullet(x, y, sx * speed * 0.75, sy * speed * 0.63, 6, "spear");
+        bullet(x, y, sx * speed * 0.9, sy * speed * 0.435, 6, "spear");
       break;
     }
     case "key1.orbit": {
@@ -1920,7 +1937,7 @@ function spawnPattern(pattern = battle.attack) {
             angle: (i * Math.PI * 2) / 5,
             r: 22,
             speed: 1.8 * rate,
-            fall: 55 * rate,
+            fall: 82 * rate,
           },
         });
       break;
@@ -1985,7 +2002,7 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "key2.surge": {
-      hazard("rush", L, B - 49, a.w, 49, 1.2, 0.4);
+      hazard("rush", L, T + ((n * 59) % (a.h - 46)), a.w, 46, 0.95, 0.4);
       for (let i = 0; i < 3; i++)
         bullet(L + 60 + i * 160, T - 8, (i - 1) * 15, speed * 0.8, 6, "water");
       break;
@@ -1994,7 +2011,7 @@ function spawnPattern(pattern = battle.attack) {
       const x = L + 40 + ((n * 101) % (a.w - 80)),
         y = T + 25 + ((n * 61) % (a.h - 50));
       hazard("beam", x, T, 21, a.h, 0.95, 0.3);
-      if (b.phaseLevel > 1) hazard("rush", L, y, a.w, 18, 1.2, 0.25);
+      hazard("rush", L, y, a.w, 20, 1.05, 0.32);
       break;
     }
     case "king.trident": {
@@ -2049,6 +2066,123 @@ function spawnPattern(pattern = battle.attack) {
       throw Error("Unknown attack " + pattern);
   }
   b.volley++;
+}
+
+// Persistent safe corners are removed with warned, enemy-specific pursuit.
+// This changes attack geometry and positioning rather than simply increasing damage.
+function updateBattlePressure(dt) {
+  const b = battle;
+  if (b.parents) return;
+  const zone =
+    Math.min(2, Math.floor((b.heart.x - arena.x) / (arena.w / 3))) +
+    3 * Math.min(2, Math.floor((b.heart.y - arena.y) / (arena.h / 3)));
+  b.zoneTime = zone === b.lastZone ? (b.zoneTime || 0) + dt : 0;
+  b.lastZone = zone;
+  b.pressureClock = (b.pressureClock || 0) + dt;
+  const delay = state.assist ? 2.4 : b.boss ? 1.25 : 1.5;
+  if (
+    b.phaseTime < 0.9 ||
+    b.phaseTime > b.duration - 1.05 ||
+    b.zoneTime < delay ||
+    b.pressureClock < delay
+  )
+    return;
+  b.zoneTime = 0;
+  b.pressureClock = 0;
+  const a = arena,
+    L = a.x,
+    T = a.y,
+    R = L + a.w,
+    B = T + a.h,
+    x = b.heart.x,
+    y = b.heart.y,
+    rate = state.assist ? 0.7 : 1;
+  const shot = (kind, count = 3, returns = false) => {
+    const fromLeft = x > L + a.w / 2,
+      sx = fromLeft ? L - 10 : R + 10,
+      sy = T + 25 + ((b.volley * 61) % (a.h - 50)),
+      angle = Math.atan2(y - sy, x - sx),
+      v = (b.boss ? 205 : 180) * rate;
+    for (let i = 0; i < count; i++) {
+      const dir = angle + (i - (count - 1) / 2) * 0.19;
+      bullet(
+        sx,
+        sy,
+        Math.cos(dir) * v,
+        Math.sin(dir) * v,
+        6,
+        kind,
+        returns ? { returnAt: 2.6 } : {},
+      );
+    }
+  };
+  switch (b.type) {
+    case "snowcrab":
+      hazard("beam", x, T, 27, a.h, 0.75, 0.32);
+      break;
+    case "coconut": {
+      const h = hazard("burst", x, y, 18, 0, 0.85, 0.08);
+      h.count = 8;
+      h.speed = 150 * rate;
+      h.projectileKind = "seed";
+      break;
+    }
+    case "reef":
+      shot("fish", 3);
+      break;
+    case "gull":
+      hazard(
+        "rush",
+        L,
+        Math.max(T, Math.min(B - 28, y - 14)),
+        a.w,
+        28,
+        0.75,
+        0.3,
+      );
+      break;
+    case "guard":
+      hazard("beam", x, T, 23, a.h, 0.8, 0.35);
+      shot("spear", 1);
+      break;
+    case "baby":
+      hazard(
+        "rush",
+        L,
+        Math.max(T, Math.min(B - 30, y - 15)),
+        a.w,
+        30,
+        0.85,
+        0.35,
+      );
+      shot("water", 3);
+      break;
+    case "gate":
+      shot("spear", 3, true);
+      break;
+    case "key1": {
+      const h = hazard("burst", x, y, 16, 0, 0.8, 0.08);
+      h.count = 10;
+      h.speed = 175 * rate;
+      h.projectileKind = "pearl";
+      break;
+    }
+    case "key2":
+      hazard("beam", x, T, 28, a.h, 0.8, 0.38);
+      break;
+    case "king":
+      hazard("beam", x, T, 25, a.h, 0.8, 0.34);
+      hazard(
+        "rush",
+        L,
+        Math.max(T, Math.min(B - 24, y - 12)),
+        a.w,
+        24,
+        1.05,
+        0.3,
+      );
+      break;
+  }
 }
 
 function hitHeart() {
@@ -2111,8 +2245,8 @@ function updateBattle(dt) {
         : b.attack,
     interval =
       ATTACKS[pattern].interval *
-      (state.assist ? 1.35 : 1) *
-      (b.phaseLevel === 3 ? 0.87 : 1);
+      (state.assist ? 1.35 : b.parents ? 1 : b.boss ? 0.72 : 0.78) *
+      (b.phaseLevel === 3 ? 0.82 : 1);
   if (
     b.phaseTime > 0.8 &&
     b.spawnTime > interval &&
@@ -2127,6 +2261,7 @@ function updateBattle(dt) {
     )
       spawnPattern(movePools[b.type].at(-1));
   }
+  updateBattlePressure(dt);
   for (const h of b.hazards) {
     h.age += dt;
     if (h.age >= h.warning && !h.fired) {
@@ -2177,7 +2312,7 @@ function updateBattle(dt) {
     if (p.orbit) {
       p.orbit.angle += p.orbit.speed * dt;
       p.orbit.y += p.orbit.fall * dt;
-      const radius = p.orbit.r + p.age * 18;
+      const radius = p.orbit.r + p.age * 27;
       p.x = p.orbit.x + Math.cos(p.orbit.angle) * radius;
       p.y = p.orbit.y + Math.sin(p.orbit.angle) * radius;
     } else
