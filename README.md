@@ -50,6 +50,8 @@ Normal-mode projectiles are faster and attack volleys arrive more frequently. Pi
 
 Staying in the same ninth of the arena for too long triggers a warned, enemy-specific pursuit attack. Crabs crack the ice beneath you, gulls dive at your lane, reef monsters chase with fish, and bosses pursue with their own weapons. Moving between regions resets that pursuit timer. Parents’ tutorial attacks remain gentler, and Assist mode keeps slower projectiles and longer warnings. Damage and boss health were not inflated for this update.
 
+Supplementary rays are limited to one late event per dodge turn when a ray is not the active main attack. Most pursuit uses the monster’s own projectiles instead. The King’s storm shares the same extra-ray limit. Primary ray attacks retain their regular pattern.
+
 The coverage regression checks each of the 36 non-tutorial attack patterns against stationary hearts in nine different positions (324 cases), plus a test that a warned pursuit attack can be escaped. These tests catch permanent safe corners; human playtesting is still needed for difficulty balance.
 
 ## Story route
@@ -75,7 +77,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Twelve browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Thirteen browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 

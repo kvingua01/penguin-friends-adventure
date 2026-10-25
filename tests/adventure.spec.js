@@ -723,6 +723,8 @@ test("pursuit warnings leave time to escape and tutorial attacks do not add purs
     mode = "world";
     startBattle("snowcrab", "warning-escape");
     beginDodge();
+    battle.attack = "snowcrab.claws";
+    battle.secondary = "snowcrab.claws";
     battle.phaseTime = 2;
     battle.zoneTime = 2;
     battle.pressureClock = 2;
@@ -820,4 +822,65 @@ test("Enter strikes on keydown immediately after FIGHT, without waiting for key 
     page.getByRole("heading", { name: "Your adventure", exact: true }),
   ).toBeVisible();
   expect(await page.evaluate(() => battle.damageDealt)).toBe(41);
+});
+
+test("non-ray moves get at most one late pursuit-ray event while primary ray moves keep their rays", async ({
+  page,
+}) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    const failures = [];
+    for (const [type, attack] of [
+      ["snowcrab", "snowcrab.snow"],
+      ["gull", "gull.feathers"],
+      ["guard", "guard.spears"],
+      ["baby", "baby.spout"],
+      ["key2", "key2.whirl"],
+      ["king", "king.trident"],
+    ]) {
+      mode = "world";
+      startBattle(type, "ray-budget");
+      beginDodge();
+      battle.attack = attack;
+      battle.secondary = attack;
+      battle.phaseLevel = 1;
+      let rays = 0,
+        bullets = 0;
+      for (const t of [1.6, 3.3, 5, 6.5]) {
+        battle.phaseTime = t;
+        battle.zoneTime = 99;
+        battle.pressureClock = 99;
+        battle.lastZone = 4;
+        battle.heart = { x: 480, y: 420 };
+        battle.hazards = [];
+        battle.bullets = [];
+        updateBattlePressure(0.01);
+        if (battle.hazards.some((h) => h.kind === "beam" || h.kind === "rush"))
+          rays++;
+        bullets += battle.bullets.length;
+        if (t < 3.2 && rays) failures.push(type + " early extra ray");
+      }
+      if (rays !== 1) failures.push(type + " pursuit ray events: " + rays);
+      if (!bullets) failures.push(type + " lost projectile pressure");
+    }
+    mode = "world";
+    startBattle("king", "storm-rays");
+    beginDodge();
+    battle.attack = "king.storm";
+    battle.secondary = "king.storm";
+    battle.phaseTime = 4;
+    for (let i = 0; i < 15; i++) spawnPattern("king.storm");
+    if (battle.hazards.filter((h) => h.kind === "beam").length !== 1)
+      failures.push("storm repeats secondary beams");
+    mode = "world";
+    startBattle("king", "main-rays");
+    beginDodge();
+    battle.attack = "king.crown";
+    battle.phaseTime = 4;
+    for (let i = 0; i < 4; i++) spawnPattern("king.crown");
+    if (battle.hazards.filter((h) => h.kind === "beam").length !== 4)
+      failures.push("main crown attack was reduced");
+    return failures;
+  });
+  expect(result).toEqual([]);
 });

@@ -1276,6 +1276,7 @@ function beginDodge() {
   b.turn++;
   b.volley = 0;
   b.pressureClock = 0;
+  b.extraRayUsed = false;
   b.zoneTime = 0;
   b.lastZone = -1;
   b.bullets = [];
@@ -1637,6 +1638,22 @@ function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
   };
   battle.hazards.push(item);
   return item;
+}
+const RAY_ATTACKS = new Set([
+  "snowcrab.claws",
+  "coconut.vines",
+  "reef.jaws",
+  "gull.dive",
+  "guard.watch",
+  "baby.breach",
+  "key1.prism",
+  "key2.surge",
+  "king.crown",
+]);
+function claimExtraRay() {
+  if (battle.extraRayUsed || battle.phaseTime < 3.2) return false;
+  battle.extraRayUsed = true;
+  return true;
 }
 function spawnPattern(pattern = battle.attack) {
   const b = battle,
@@ -2059,7 +2076,16 @@ function spawnPattern(pattern = battle.attack) {
             6,
             "royalWater",
           );
-      hazard("beam", L + 40 + ((n * 131) % (a.w - 80)), T, 16, a.h, 1.15, 0.2);
+      if (n % 4 === 0 && claimExtraRay())
+        hazard(
+          "beam",
+          L + 40 + ((n * 131) % (a.w - 80)),
+          T,
+          16,
+          a.h,
+          1.15,
+          0.2,
+        );
       break;
     }
     default:
@@ -2116,9 +2142,15 @@ function updateBattlePressure(dt) {
       );
     }
   };
+  const activePattern =
+    b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
+      ? b.secondary
+      : b.attack;
+  const rayAllowed = () => RAY_ATTACKS.has(activePattern) || claimExtraRay();
   switch (b.type) {
     case "snowcrab":
-      hazard("beam", x, T, 27, a.h, 0.75, 0.32);
+      if (rayAllowed()) hazard("beam", x, T, 27, a.h, 0.75, 0.32);
+      else shot("claw", 3);
       break;
     case "coconut": {
       const h = hazard("burst", x, y, 18, 0, 0.85, 0.08);
@@ -2131,30 +2163,35 @@ function updateBattlePressure(dt) {
       shot("fish", 3);
       break;
     case "gull":
-      hazard(
-        "rush",
-        L,
-        Math.max(T, Math.min(B - 28, y - 14)),
-        a.w,
-        28,
-        0.75,
-        0.3,
-      );
+      if (rayAllowed())
+        hazard(
+          "rush",
+          L,
+          Math.max(T, Math.min(B - 28, y - 14)),
+          a.w,
+          28,
+          0.75,
+          0.3,
+        );
+      else shot("feather", 3);
       break;
     case "guard":
-      hazard("beam", x, T, 23, a.h, 0.8, 0.35);
-      shot("spear", 1);
+      if (rayAllowed()) {
+        hazard("beam", x, T, 23, a.h, 0.8, 0.35);
+        shot("spear", 1);
+      } else shot("spear", 3);
       break;
     case "baby":
-      hazard(
-        "rush",
-        L,
-        Math.max(T, Math.min(B - 30, y - 15)),
-        a.w,
-        30,
-        0.85,
-        0.35,
-      );
+      if (rayAllowed())
+        hazard(
+          "rush",
+          L,
+          Math.max(T, Math.min(B - 30, y - 15)),
+          a.w,
+          30,
+          0.85,
+          0.35,
+        );
       shot("water", 3);
       break;
     case "gate":
@@ -2168,9 +2205,14 @@ function updateBattlePressure(dt) {
       break;
     }
     case "key2":
-      hazard("beam", x, T, 28, a.h, 0.8, 0.38);
+      if (rayAllowed()) hazard("beam", x, T, 28, a.h, 0.8, 0.38);
+      else shot("water", 3);
       break;
     case "king":
+      if (!rayAllowed()) {
+        shot("royalSpear", 3);
+        break;
+      }
       hazard("beam", x, T, 25, a.h, 0.8, 0.34);
       hazard(
         "rush",
