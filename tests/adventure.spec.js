@@ -664,102 +664,60 @@ test("the King’s movement rule uses actual motion and push blocks work with he
   expect(await page.evaluate(() => state.x)).toBeGreaterThan(480);
 });
 
-test("every non-tutorial attack threatens stationary hearts across all nine arena zones", async ({
-  page,
-}) => {
-  await begin(page);
-  const failures = await page.evaluate(() => {
-    const failures = [];
-    keys.clear();
-    state.assist = false;
-    for (const attack of Object.keys(ATTACKS).filter(
-      (id) => !id.startsWith("parents."),
-    )) {
-      const type = attack.split(".")[0];
-      for (let row = 0; row < 3; row++)
-        for (let col = 0; col < 3; col++) {
-          mode = "world";
-          state.hp = 120;
-          startBattle(type, "coverage");
-          beginDodge();
-          battle.attack = attack;
-          battle.secondary = attack;
-          battle.phaseLevel = 1;
-          const x = arena.x + 22 + (col * (arena.w - 44)) / 2,
-            y = arena.y + 22 + (row * (arena.h - 44)) / 2;
-          let hit = false;
-          for (
-            let frame = 0;
-            frame < Math.ceil(battle.duration / 0.04);
-            frame++
-          ) {
-            battle.heart = { x, y };
-            battle.invulnerable = 0;
-            state.hp = 120;
-            updateBattle(0.04);
-            if (state.hp < 120) hit = true;
-          }
-          if (!hit)
-            failures.push(
-              attack +
-                " leaves zone " +
-                col +
-                "," +
-                row +
-                " safe for the full turn",
-            );
-        }
-    }
-    return failures;
-  });
-  expect(failures).toEqual([]);
-});
-
-test("pursuit warnings leave time to escape and tutorial attacks do not add pursuit", async ({
+test("earlier combat speed and cadence return without pursuit or overlapping bonus volleys", async ({
   page,
 }) => {
   await begin(page);
   const result = await page.evaluate(() => {
-    mode = "world";
-    startBattle("snowcrab", "warning-escape");
-    beginDodge();
-    battle.attack = "snowcrab.claws";
-    battle.secondary = "snowcrab.claws";
-    battle.phaseTime = 2;
-    battle.zoneTime = 2;
-    battle.pressureClock = 2;
-    const x = 480,
-      y = 420;
-    battle.heart = { x, y };
-    battle.lastZone = 1 + 3;
-    updateBattlePressure(0.01);
-    const h = battle.hazards.find((h) => h.kind === "beam" && h.x === x);
-    if (!h) return { warning: false };
-    const warning = h.warning;
-    state.hp = 120;
-    battle.bullets = [];
-    battle.spawnTime = -999;
-    battle.zoneTime = -999;
-    keys.add("d");
-    for (let i = 0; i < 24; i++) updateBattle(0.04);
+    const failures = [];
+    state.assist = false;
     keys.clear();
-    const escaped = state.hp === 120;
-    mode = "world";
-    startBattle("parents", "tutorial-pressure");
-    beginDodge();
-    battle.phaseTime = 2;
-    battle.zoneTime = 99;
-    battle.pressureClock = 99;
-    updateBattlePressure(0.01);
-    return {
-      warning: warning >= 0.7,
-      escaped,
-      tutorialHazards: battle.hazards.length,
-    };
+    for (const [type, attack, expected] of [
+      ["reef", "reef.school", 113],
+      ["king", "king.trident", 145],
+    ]) {
+      mode = "world";
+      startBattle(type, "baseline-speed");
+      beginDodge();
+      battle.phaseLevel = 1;
+      spawnPattern(attack);
+      const p = battle.bullets[0];
+      if (Math.abs(Math.hypot(p.vx, p.vy) - expected) > 0.01)
+        failures.push(type + " baseline speed");
+    }
+    const original = spawnPattern;
+    try {
+      for (const [type, attack, phase, minGap] of [
+        ["snowcrab", "snowcrab.snow", 1, 0.55],
+        ["king", "king.crown", 3, 1.12 * 0.87],
+      ]) {
+        mode = "world";
+        startBattle(type, "baseline-cadence");
+        beginDodge();
+        battle.phaseLevel = phase;
+        battle.attack = attack;
+        battle.secondary = attack;
+        battle.invulnerable = 999;
+        const calls = [];
+        spawnPattern = (id) => {
+          calls.push({ id, time: battle.phaseTime });
+          original(id);
+        };
+        for (let i = 0; i < Math.ceil(battle.duration / 0.01); i++)
+          updateBattle(0.01);
+        if (calls.length < 2) failures.push("attack did not execute");
+        if (calls.some((c) => c.id !== attack))
+          failures.push("bonus pattern was layered in");
+        for (let i = 1; i < calls.length; i++)
+          if (calls[i].time - calls[i - 1].time < minGap - 0.001)
+            failures.push(type + " volleys too frequent");
+      }
+    } finally {
+      spawnPattern = original;
+    }
+    return failures;
   });
-  expect(result.warning).toBe(true);
-  expect(result.escaped).toBe(true);
-  expect(result.tutorialHazards).toBe(0);
+  expect(result).toEqual([]);
 });
 
 test("Enter strikes on keydown immediately after FIGHT, without waiting for key release or timeout", async ({
@@ -824,7 +782,7 @@ test("Enter strikes on keydown immediately after FIGHT, without waiting for key 
   expect(await page.evaluate(() => battle.damageDealt)).toBe(41);
 });
 
-test("non-ray moves get at most one late pursuit-ray event while primary ray moves keep their rays", async ({
+test("non-ray moves have no added pursuit rays and the King storm retains its ray limit", async ({
   page,
 }) => {
   await begin(page);
@@ -839,29 +797,16 @@ test("non-ray moves get at most one late pursuit-ray event while primary ray mov
       ["king", "king.trident"],
     ]) {
       mode = "world";
-      startBattle(type, "ray-budget");
+      startBattle(type, "no-pressure");
       beginDodge();
       battle.attack = attack;
       battle.secondary = attack;
       battle.phaseLevel = 1;
-      let rays = 0,
-        bullets = 0;
-      for (const t of [1.6, 3.3, 5, 6.5]) {
-        battle.phaseTime = t;
-        battle.zoneTime = 99;
-        battle.pressureClock = 99;
-        battle.lastZone = 4;
-        battle.heart = { x: 480, y: 420 };
-        battle.hazards = [];
-        battle.bullets = [];
-        updateBattlePressure(0.01);
-        if (battle.hazards.some((h) => h.kind === "beam" || h.kind === "rush"))
-          rays++;
-        bullets += battle.bullets.length;
-        if (t < 3.2 && rays) failures.push(type + " early extra ray");
-      }
-      if (rays !== 1) failures.push(type + " pursuit ray events: " + rays);
-      if (!bullets) failures.push(type + " lost projectile pressure");
+      battle.invulnerable = 999;
+      battle.spawnTime = -999;
+      for (let i = 0; i < 160; i++) updateBattle(0.04);
+      if (battle.hazards.length || battle.bullets.length)
+        failures.push(type + " added pursuit attacks");
     }
     mode = "world";
     startBattle("king", "storm-rays");

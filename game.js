@@ -1275,10 +1275,7 @@ function beginDodge() {
   b.spawnTime = 0;
   b.turn++;
   b.volley = 0;
-  b.pressureClock = 0;
   b.extraRayUsed = false;
-  b.zoneTime = 0;
-  b.lastZone = -1;
   b.bullets = [];
   b.hazards = [];
   b.phaseLevel =
@@ -1639,17 +1636,6 @@ function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
   battle.hazards.push(item);
   return item;
 }
-const RAY_ATTACKS = new Set([
-  "snowcrab.claws",
-  "coconut.vines",
-  "reef.jaws",
-  "gull.dive",
-  "guard.watch",
-  "baby.breach",
-  "key1.prism",
-  "key2.surge",
-  "king.crown",
-]);
 function claimExtraRay() {
   if (battle.extraRayUsed || battle.phaseTime < 3.2) return false;
   battle.extraRayUsed = true;
@@ -1662,8 +1648,8 @@ function spawnPattern(pattern = battle.attack) {
     n = b.volley,
     rate = state.assist ? 0.7 : 1,
     speed =
-      (b.parents ? 76 : b.boss ? 190 : 155) *
-      (1 + (b.phaseLevel - 1) * 0.1) *
+      (b.parents ? 76 : b.boss ? 145 : 113) *
+      (1 + (b.phaseLevel - 1) * 0.11) *
       rate,
     L = a.x,
     T = a.y,
@@ -2094,139 +2080,6 @@ function spawnPattern(pattern = battle.attack) {
   b.volley++;
 }
 
-// Persistent safe corners are removed with warned, enemy-specific pursuit.
-// This changes attack geometry and positioning rather than simply increasing damage.
-function updateBattlePressure(dt) {
-  const b = battle;
-  if (b.parents) return;
-  const zone =
-    Math.min(2, Math.floor((b.heart.x - arena.x) / (arena.w / 3))) +
-    3 * Math.min(2, Math.floor((b.heart.y - arena.y) / (arena.h / 3)));
-  b.zoneTime = zone === b.lastZone ? (b.zoneTime || 0) + dt : 0;
-  b.lastZone = zone;
-  b.pressureClock = (b.pressureClock || 0) + dt;
-  const delay = state.assist ? 2.4 : b.boss ? 1.25 : 1.5;
-  if (
-    b.phaseTime < 0.9 ||
-    b.phaseTime > b.duration - 1.05 ||
-    b.zoneTime < delay ||
-    b.pressureClock < delay
-  )
-    return;
-  b.zoneTime = 0;
-  b.pressureClock = 0;
-  const a = arena,
-    L = a.x,
-    T = a.y,
-    R = L + a.w,
-    B = T + a.h,
-    x = b.heart.x,
-    y = b.heart.y,
-    rate = state.assist ? 0.7 : 1;
-  const shot = (kind, count = 3, returns = false) => {
-    const fromLeft = x > L + a.w / 2,
-      sx = fromLeft ? L - 10 : R + 10,
-      sy = T + 25 + ((b.volley * 61) % (a.h - 50)),
-      angle = Math.atan2(y - sy, x - sx),
-      v = (b.boss ? 205 : 180) * rate;
-    for (let i = 0; i < count; i++) {
-      const dir = angle + (i - (count - 1) / 2) * 0.19;
-      bullet(
-        sx,
-        sy,
-        Math.cos(dir) * v,
-        Math.sin(dir) * v,
-        6,
-        kind,
-        returns ? { returnAt: 2.6 } : {},
-      );
-    }
-  };
-  const activePattern =
-    b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
-      ? b.secondary
-      : b.attack;
-  const rayAllowed = () => RAY_ATTACKS.has(activePattern) || claimExtraRay();
-  switch (b.type) {
-    case "snowcrab":
-      if (rayAllowed()) hazard("beam", x, T, 27, a.h, 0.75, 0.32);
-      else shot("claw", 3);
-      break;
-    case "coconut": {
-      const h = hazard("burst", x, y, 18, 0, 0.85, 0.08);
-      h.count = 8;
-      h.speed = 150 * rate;
-      h.projectileKind = "seed";
-      break;
-    }
-    case "reef":
-      shot("fish", 3);
-      break;
-    case "gull":
-      if (rayAllowed())
-        hazard(
-          "rush",
-          L,
-          Math.max(T, Math.min(B - 28, y - 14)),
-          a.w,
-          28,
-          0.75,
-          0.3,
-        );
-      else shot("feather", 3);
-      break;
-    case "guard":
-      if (rayAllowed()) {
-        hazard("beam", x, T, 23, a.h, 0.8, 0.35);
-        shot("spear", 1);
-      } else shot("spear", 3);
-      break;
-    case "baby":
-      if (rayAllowed())
-        hazard(
-          "rush",
-          L,
-          Math.max(T, Math.min(B - 30, y - 15)),
-          a.w,
-          30,
-          0.85,
-          0.35,
-        );
-      shot("water", 3);
-      break;
-    case "gate":
-      shot("spear", 3, true);
-      break;
-    case "key1": {
-      const h = hazard("burst", x, y, 16, 0, 0.8, 0.08);
-      h.count = 10;
-      h.speed = 175 * rate;
-      h.projectileKind = "pearl";
-      break;
-    }
-    case "key2":
-      if (rayAllowed()) hazard("beam", x, T, 28, a.h, 0.8, 0.38);
-      else shot("water", 3);
-      break;
-    case "king":
-      if (!rayAllowed()) {
-        shot("royalSpear", 3);
-        break;
-      }
-      hazard("beam", x, T, 25, a.h, 0.8, 0.34);
-      hazard(
-        "rush",
-        L,
-        Math.max(T, Math.min(B - 24, y - 12)),
-        a.w,
-        24,
-        1.05,
-        0.3,
-      );
-      break;
-  }
-}
-
 function hitHeart() {
   const b = battle;
   if (b.invulnerable > 0) return;
@@ -2287,8 +2140,8 @@ function updateBattle(dt) {
         : b.attack,
     interval =
       ATTACKS[pattern].interval *
-      (state.assist ? 1.35 : b.parents ? 1 : b.boss ? 0.72 : 0.78) *
-      (b.phaseLevel === 3 ? 0.82 : 1);
+      (state.assist ? 1.35 : 1) *
+      (b.phaseLevel === 3 ? 0.87 : 1);
   if (
     b.phaseTime > 0.8 &&
     b.spawnTime > interval &&
@@ -2296,14 +2149,8 @@ function updateBattle(dt) {
   ) {
     b.spawnTime = 0;
     spawnPattern(pattern);
-    if (
-      b.phaseLevel === 3 &&
-      b.volley % 4 === 0 &&
-      pattern !== movePools[b.type].at(-1)
-    )
-      spawnPattern(movePools[b.type].at(-1));
   }
-  updateBattlePressure(dt);
+
   for (const h of b.hazards) {
     h.age += dt;
     if (h.age >= h.warning && !h.fired) {
@@ -2411,7 +2258,7 @@ function updateBattle(dt) {
       b.parents && b.acts >= 2
         ? "Your parents believe in you. FLEE is unlocked."
         : b.phaseLevel === 3
-          ? "The boss is desperate. The next attack will combine patterns."
+          ? "The boss is tiring. Stay focused on the next pattern."
           : b.phaseLevel === 2
             ? "A new phase begins. Watch for the attack to change halfway through."
             : "You catch your breath. Choose your next move.";
