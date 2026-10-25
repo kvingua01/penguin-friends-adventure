@@ -759,3 +759,65 @@ test("pursuit warnings leave time to escape and tutorial attacks do not add purs
   expect(result.escaped).toBe(true);
   expect(result.tutorialHazards).toBe(0);
 });
+
+test("Enter strikes on keydown immediately after FIGHT, without waiting for key release or timeout", async ({
+  page,
+}) => {
+  await begin(page);
+  await page.evaluate(() => startBattle("king", "enter-timing"));
+  // Enter can still activate the focused FIGHT button through normal keyboard navigation.
+  await page.getByRole("button", { name: "FIGHT", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => battle.phase)).toBe("strike");
+  await page.evaluate(() => {
+    battle.marker = 0.5;
+  });
+  // A held/repeated Enter from selecting FIGHT must not fire another action.
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        repeat: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(await page.evaluate(() => battle.phase)).toBe("strike");
+  await page.keyboard.down("Enter");
+  const result = await page.evaluate(() => ({
+    phase: battle.phase,
+    damage: battle.damageDealt,
+    hp: battle.hp,
+    turn: battle.turn,
+  }));
+  expect(result.phase).toBe("dodge");
+  expect(result.damage).toBeGreaterThan(0);
+  expect(result.hp).toBe(650 - result.damage);
+  expect(result.turn).toBe(1);
+  await page.keyboard.up("Enter");
+  expect(await page.evaluate(() => battle.damageDealt)).toBe(result.damage);
+  // Check the exact sampled marker synchronously so animation frames cannot
+  // advance between test setup and the keydown being delivered.
+  const exact = await page.evaluate(() => {
+    mode = "world";
+    startBattle("king", "exact-enter");
+    battle.phase = "strike";
+    battle.marker = 0.5;
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
+    );
+    return { damage: battle.damageDealt, phase: battle.phase };
+  });
+  expect(exact).toEqual({ damage: 41, phase: "dodge" });
+  // Explicitly focused menu controls keep their own Enter activation.
+  await page.evaluate(() => {
+    battle.phase = "strike";
+    battleUI();
+  });
+  await page.getByRole("button", { name: "Open game menu" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "Your adventure", exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => battle.damageDealt)).toBe(41);
+});

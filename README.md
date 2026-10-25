@@ -19,7 +19,7 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 - E / Space / INTERACT: talk, inspect objects, advance dialogue, or stop the strike marker.
 - M / Map: open the region journal and see visited rooms, connections, and your current position. Use E at doorways to enter connected rooms.
 - I / Bag: healing inventory. Escape / Menu: pause, instructions, assist mode, and saving.
-- FIGHT: stop the marker near the center for a strong hit, then move the heart to dodge until the attack timer ends (about 7 seconds for regular enemies, 8–10 seconds for bosses).
+- FIGHT: press Enter, E, Space, or STRIKE to stop the marker near the center for a strong hit, then move the heart to dodge until the attack timer ends (about 7 seconds for regular enemies, 8–10 seconds for bosses).
 - ITEM: consume food and take an enemy attack turn.
 - FLEE: locked until 28% of the enemy's original health has been dealt as damage. Major bosses cannot be fled from, except the parents.
 - ACT appears only in the parents' tutorial. Two conversations unlock FLEE without dealing damage. There is no MERCY action.
@@ -75,7 +75,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Eleven browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Twelve browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, all eight puzzle solutions and reset/mistake handling, random walking encounters and safe-area/cooldown behavior, four-direction facing, scrolling-camera bounds, unique monster move ownership, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 

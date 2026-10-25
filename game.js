@@ -646,7 +646,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular fights happen while you walk outside safe areas; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular fights happen while you walk outside safe areas; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press Enter, E, Space, or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1206,7 +1206,7 @@ function battleUI() {
         battle.phaseTime = 0;
         battle.marker = 0;
         battle.message =
-          "Press E / Space or STRIKE when the marker reaches the center.";
+          "Press Enter, E, Space, or STRIKE when the marker reaches the center.";
         battleUI();
       }),
     );
@@ -1225,7 +1225,7 @@ function battleUI() {
     a.append(flee);
     if (battle.parents) a.append(button("ACT", act));
   } else if (battle.phase === "strike")
-    a.append(button("STRIKE · E / SPACE", finishStrike, true));
+    a.append(button("STRIKE · ENTER / E / SPACE", finishStrike, true));
   else if (battle.phase === "dodge") {
     const b = button("MOVE THE HEART · DODGE", () => {});
     b.disabled = true;
@@ -3939,6 +3939,25 @@ window.addEventListener("keydown", (e) => {
       closePanel();
     }
     return;
+  }
+  // Enter must resolve the timing strike on keydown, even after FIGHT replaces
+  // its focused button. Otherwise the browser has no control to activate and
+  // the strike waits for its automatic timeout.
+  if (
+    k === "enter" &&
+    mode === "battle" &&
+    ["strike", "result"].includes(battle.phase)
+  ) {
+    const focusedButton = e.target.closest?.("button");
+    const battleInput =
+      !focusedButton ||
+      focusedButton.closest("#battleActions") ||
+      focusedButton.id === "interactButton";
+    if (battleInput) {
+      e.preventDefault();
+      if (!e.repeat && !e.isComposing) interact();
+      return;
+    }
   }
   if (movement.includes(k)) {
     e.preventDefault();
