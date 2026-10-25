@@ -465,3 +465,72 @@ footer {
     display: none;
   }
 }
+
+/* Keep the arena and battle actions together inside the visible screen. */
+body.in-battle {
+  overflow: hidden;
+}
+body.in-battle main {
+  height: 100dvh;
+  min-height: 0;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 1080px;
+  padding: 8px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+body.in-battle header,
+body.in-battle .objective,
+body.in-battle .under,
+body.in-battle footer {
+  display: none;
+}
+body.in-battle #stage {
+  min-height: 0;
+  overflow: hidden;
+}
+body.in-battle canvas {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+body.in-battle #battleControls {
+  padding: 8px 12px;
+}
+body.in-battle #battleActions {
+  flex-wrap: nowrap;
+  margin-top: 5px;
+  gap: 5px;
+}
+body.in-battle #battleActions button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 5px;
+}
+body.in-battle .touch {
+  padding-top: 5px;
+}
+body.in-battle #interactButton {
+  min-width: 0;
+}
+@media (max-height: 500px) {
+  body.in-battle .hud {
+    padding: 4px 8px;
+  }
+  body.in-battle .dpad {
+    grid-template-columns: repeat(3, 34px);
+    gap: 2px;
+  }
+  body.in-battle .dpad button {
+    padding: 5px;
+  }
+  body.in-battle #interactButton {
+    min-height: 34px;
+  }
+  body.in-battle #battleMessage {
+    font-size: 10px;
+    min-height: 16px;
+  }
+}

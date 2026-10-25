@@ -829,3 +829,47 @@ test("non-ray moves have no added pursuit rays and the King storm retains its ra
   });
   expect(result).toEqual([]);
 });
+
+test("battle arena and Fight/Flee buttons fit without scrolling", async ({
+  page,
+}) => {
+  await begin(page);
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 390, height: 844 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => newGame());
+    await flush(page);
+    await page.evaluate(() => startBattle("snowcrab", "layout-check"));
+    for (const selector of [
+      "#game",
+      "#battleControls",
+      "#battleActions button:first-child",
+      "#battleActions button:nth-child(3)",
+      ".dpad",
+    ]) {
+      const box = await page.locator(selector).boundingBox();
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(
+        box.y + box.height,
+        selector + JSON.stringify(await page.locator("main").boundingBox()),
+      ).toBeLessThanOrEqual(viewport.height);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+    }
+    await expect(
+      page.getByRole("button", { name: "FIGHT", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "FIGHT", exact: true }).click();
+    await expect(
+      page.getByRole("button", {
+        name: "STRIKE · ENTER / E / SPACE",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.evaluate(() => title());
+    await expect(page.locator("body")).not.toHaveClass("in-battle");
+  }
+});

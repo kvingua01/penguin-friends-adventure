@@ -592,6 +592,7 @@ function title() {
   dialogue = null;
   $("dialogue").hidden = true;
   $("battleControls").hidden = true;
+  document.body.classList.remove("in-battle");
   updateHud();
   const saved = readSave();
   panel(
@@ -1181,6 +1182,7 @@ function startBattle(type, id) {
     done: null,
   };
   $("battleControls").hidden = false;
+  document.body.classList.add("in-battle");
   updateHud();
   battleUI();
   tone(220, 0.3, "triangle");
@@ -1341,6 +1343,7 @@ function finishBattle(outcome) {
     mode = "world";
     battle = null;
     $("battleControls").hidden = true;
+    document.body.classList.remove("in-battle");
     if (walkable(state.x - 24, state.y)) state.x -= 24;
     state.encounterGrace = 14;
     state.bossGrace = 3;
