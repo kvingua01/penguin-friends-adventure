@@ -79,4 +79,4 @@ Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in 
 
 Hosting and HTTPS certificate management remain Railway settings; changing this game does not retry or fix a custom-domain certificate.
 
-During battles, the arena, Fight/Flee actions, and movement pad share the visible screen. Exploration returns to its normal layout afterward. The original four-chapter story and original save slot are restored; the book-edition save remains untouched in browser storage.
+During your turn, the arena, Fight/Flee actions, and movement pad share the visible screen. During enemy attacks, the action bar hides and the canvas returns to its normal size, with the arena brought into view. Exploration returns to its normal layout afterward. The original four-chapter story and original save slot are restored; the book-edition save remains untouched in browser storage.

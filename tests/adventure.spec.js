@@ -869,6 +869,26 @@ test("battle arena and Fight/Flee buttons fit without scrolling", async ({
         exact: true,
       }),
     ).toBeVisible();
+    await page.evaluate(() => beginDodge());
+    await expect(page.locator("body")).not.toHaveClass("in-battle");
+    await expect(page.locator("#battleControls")).toBeHidden();
+    const naturalHeight = await page
+      .locator("#game")
+      .evaluate(
+        (canvas) => (canvas.clientWidth * canvas.height) / canvas.width,
+      );
+    expect((await page.locator("#game").boundingBox()).height).toBeCloseTo(
+      naturalHeight,
+      0,
+    );
+    await page.evaluate(() => {
+      battle.phase = "choice";
+      battleUI();
+    });
+    await expect(page.locator("body")).toHaveClass("in-battle");
+    await expect(
+      page.getByRole("button", { name: "FIGHT", exact: true }),
+    ).toBeVisible();
     await page.evaluate(() => title());
     await expect(page.locator("body")).not.toHaveClass("in-battle");
   }

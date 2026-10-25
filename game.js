@@ -1198,6 +1198,12 @@ function fleeUnlocked() {
 }
 function battleUI() {
   if (!battle) return;
+  const playerTurn = battle.phase !== "dodge";
+  const wasCompact = document.body.classList.contains("in-battle");
+  document.body.classList.toggle("in-battle", playerTurn);
+  $("battleControls").hidden = !playerTurn;
+  if (!playerTurn && wasCompact)
+    $("stage").scrollIntoView({ block: "center", behavior: "instant" });
   $("battleMessage").textContent = battle.message;
   const a = $("battleActions");
   a.innerHTML = "";
