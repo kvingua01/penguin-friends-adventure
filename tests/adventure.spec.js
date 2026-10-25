@@ -181,31 +181,15 @@ test("48 connected rooms, safe door arrivals, reachable interactions, and workin
   expect(await page.evaluate(() => state.room)).toBe("k7");
 });
 
-test("the books play in order, then continue into Slippy’s capture and the retained rescue ending", async ({
+test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and ending", async ({
   page,
 }) => {
   await begin(page);
-  const choose = async (label) => {
-    await page.getByRole("button", { name: label, exact: true }).click();
-    await flush(page);
-  };
   await go(page, "h1");
   await interactWith(page, "slippy");
-  await go(page, "h9");
-  await interactWith(page, "fishing-bay");
-  await choose("Climb onto the iceberg");
-  expect(await page.evaluate(() => state.flags.firstRescue)).toBe(true);
-  expect(await page.evaluate(() => state.map)).toBe(0);
-  await interactWith(page, "mama");
-  await go(page, "h4");
-  await interactWith(page, "lake-play");
-  await choose("Go belly skating");
   await go(page, "h0");
-  await interactWith(page, "mama");
-  await choose("Sleep until morning");
-  await go(page, "h1");
-  await interactWith(page, "slippy");
-  expect(await page.evaluate(() => battle.name)).toContain("Slippy");
+  await interactWith(page, "parents");
+  expect(await page.evaluate(() => fleeUnlocked())).toBe(false);
   for (let i = 0; i < 2; i++) {
     await page.getByRole("button", { name: "ACT", exact: true }).click();
     await endTurn(page);
@@ -213,21 +197,12 @@ test("the books play in order, then continue into Slippy’s capture and the ret
   await page.getByRole("button", { name: "FLEE", exact: true }).click();
   await page.keyboard.press("e");
   await flush(page);
-  expect(await page.evaluate(() => state.flags.secretSqueaks)).toBe(true);
   await go(page, "h9");
-  await interactWith(page, "fishing-bay");
-  await choose("Follow the drifting iceberg");
+  await interactWith(page, "region");
   expect(await page.evaluate(() => state.map)).toBe(1);
-  await go(page, "b1");
-  await interactWith(page, "cool-ground");
-  await go(page, "b3");
-  await interactWith(page, "itchy-plant");
   await go(page, "b9");
   await interactWith(page, "baby");
-  await win(page, "baby");
-  expect(await page.evaluate(() => fruitCount())).toBe(0);
-  expect(await page.evaluate(() => state.flags.baby)).toBe(true);
-  await choose("Share the fish and rest");
+  expect(await page.evaluate(() => mode)).toBe("world");
   for (const [room, id] of [
     ["b2", "fruit1"],
     ["b5", "fruit2"],
@@ -236,40 +211,18 @@ test("the books play in order, then continue into Slippy’s capture and the ret
     await go(page, room);
     await interactWith(page, id);
   }
-  expect(await page.evaluate(() => state.flags.boononasNamed)).toBe(true);
   await go(page, "b9");
+  await win(page, "baby");
   await interactWith(page, "region");
-  await choose("Meet the sailor");
-  expect(await page.evaluate(() => state.flags.captured)).not.toBe(true);
-  await go(page, "c5");
-  await interactWith(page, "pippy");
-  await go(page, "c3");
-  await interactWith(page, "show-fruit");
-  await go(page, "c4");
-  await interactWith(page, "pippy-shade");
-  await go(page, "c5");
-  await interactWith(page, "region");
-  await choose("Climb the snowy mountain");
-  expect(await page.evaluate(() => state.map)).toBe(3);
-  await go(page, "g5");
-  await interactWith(page, "summit-trick");
-  await choose("Try the spinning belly slide");
-  expect(await page.evaluate(() => state.room)).toBe("c5");
-  expect(await page.evaluate(() => state.flags.slideCrash)).toBe(true);
-  await interactWith(page, "pippy");
-  await interactWith(page, "slippy");
-  await interactWith(page, "flippy-version");
-  expect(await page.evaluate(() => state.flags.slideStory)).toBe(true);
-  await go(page, "c0");
-  await interactWith(page, "fish-ambush");
-  await win(page, "reef", "fishAmbush");
-  expect(await page.evaluate(() => state.flags.book3Complete)).toBe(true);
-  expect(await page.evaluate(() => state.flags.captured)).not.toBe(true);
-  await go(page, "c5");
-  await interactWith(page, "pippy");
-  await choose("Go after Slippy");
-  expect(await page.evaluate(() => state.map)).toBe(4);
   expect(await page.evaluate(() => state.flags.captured)).toBe(true);
+  await go(page, "c5");
+  await interactWith(page, "region");
+  expect(await page.evaluate(() => state.map)).toBe(2);
+  await interactWith(page, "pippy");
+  await interactWith(page, "region");
+  await go(page, "g5");
+  await win(page, "gate");
+  await interactWith(page, "region");
   await go(page, "k3");
   await solveRoomPuzzle(page);
   await go(page, "k4");
@@ -288,6 +241,9 @@ test("the books play in order, then continue into Slippy’s capture and the ret
       name: "Some things are bigger than the ocean.",
     }),
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => Object.keys(state.visited).length),
+  ).toBeGreaterThan(29);
 });
 
 test("enemies vary attacks, bosses escalate, warnings are safe before firing, and damage is real", async ({
@@ -451,13 +407,7 @@ test("game assets load and repository files stay private", async ({
     await page.waitForTimeout(35);
   }
   expect(errors).toEqual([]);
-  for (const asset of [
-    "/game.js",
-    "/world.js",
-    "/story.js",
-    "/style.css",
-    "/health",
-  ])
+  for (const asset of ["/game.js", "/world.js", "/style.css", "/health"])
     expect((await request.get(asset)).status()).toBe(200);
   for (const file of ["/server.js", "/package.json", "/.git/config"])
     expect((await request.get(file)).status()).toBe(404);
@@ -565,7 +515,7 @@ test("walking triggers random fights with no E, villages and idle time stay safe
   await page.evaluate(() => {
     state.room = "b9";
     state.map = 1;
-    Object.assign(state.flags, { itchyPlant: true, babyEncounter: true });
+    Object.assign(state.flags, { fruit1: true, fruit2: true, fruit3: true });
     const boss = targets().find((n) => n.kind === "boss");
     state.x = boss.x - 65;
     state.y = boss.y;
@@ -878,128 +828,4 @@ test("non-ray moves have no added pursuit rays and the King storm retains its ra
     return failures;
   });
   expect(result).toEqual([]);
-});
-
-test("story gates keep the baby-orca fight before boononas and preserve the unfinished feast after reload", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const legacy =
-    '{"version":3,"map":5,"flags":{"ending":true},"note":"previous adventure"}';
-  await page.evaluate(
-    (value) => localStorage.setItem("penguin-friends-story-v1", value),
-    legacy,
-  );
-  await page
-    .getByRole("button", { name: "New adventure", exact: true })
-    .click();
-  await flush(page);
-  expect(
-    await page.evaluate(() => STORY.meetSlippy.flat().join(" ")),
-  ).toContain("February 16");
-  expect(await page.evaluate(() => STORY.credits)).toContain("Rowan");
-  await page.evaluate(() => {
-    state.map = 1;
-    state.room = "b2";
-    state.flags = {};
-  });
-  expect(
-    await page.evaluate(() => activeObjects().some((o) => o[0] === "fruit")),
-  ).toBe(false);
-  await page.evaluate(() => {
-    state.room = "b9";
-    state.flags.itchyPlant = true;
-    state.bossGrace = 0;
-    const b = targets().find((n) => n.kind === "boss");
-    state.x = b.x - 60;
-    state.y = b.y;
-  });
-  await page.waitForTimeout(90);
-  await expect(page.locator("#dialogue")).toBeVisible();
-  await flush(page);
-  expect(await page.evaluate(() => battle.type)).toBe("baby");
-  expect(await page.evaluate(() => state.flags.babyEncounter)).toBe(true);
-  await win(page, "baby");
-  await expect(
-    page.getByRole("button", { name: "Share the fish and rest", exact: true }),
-  ).toBeVisible();
-  await page.reload();
-  await page
-    .getByRole("button", { name: "Continue adventure", exact: true })
-    .click();
-  expect(await page.evaluate(() => state.flags.baby)).toBe(true);
-  expect(await page.evaluate(() => state.flags.fishFeast)).not.toBe(true);
-  expect(
-    await page.evaluate(() => targets().some((n) => n.id === "fish-feast")),
-  ).toBe(true);
-  await interactWith(page, "fish-feast");
-  await page
-    .getByRole("button", { name: "Share the fish and rest", exact: true })
-    .click();
-  await flush(page);
-  expect(await page.evaluate(() => state.flags.fishFeast)).toBe(true);
-  expect(
-    await page.evaluate(() => localStorage.getItem("penguin-friends-story-v1")),
-  ).toBe(legacy);
-});
-
-test("authored story checkpoints are reachable and the fish ambush starts by approaching the water", async ({
-  page,
-}) => {
-  await begin(page);
-  const failures = await page.evaluate(() => {
-    const failures = [],
-      cases = [
-        ["h9", {}],
-        ["h4", { parentsAway: true }],
-        ["b1", {}],
-        ["b3", { hotSand: true }],
-        ["b9", { baby: true }],
-        ["c3", { pippy: true }],
-        ["c4", { shownFruit: true }],
-        ["g5", {}],
-        ["c5", { slideCrash: true }],
-        ["c0", { slideStory: true }],
-      ];
-    for (const [id, flags] of cases) {
-      state.room = id;
-      state.map = WORLD.rooms[id].region;
-      state.flags = flags;
-      placePlayer(...projectPoint(currentRoom(), 480, 350));
-      const q = [[Math.round(state.x), Math.round(state.y)]],
-        seen = new Set(),
-        points = [];
-      for (let i = 0; i < q.length; i++) {
-        const [x, y] = q[i],
-          key = x + "," + y;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        points.push([x, y]);
-        for (const [dx, dy] of [
-          [16, 0],
-          [-16, 0],
-          [0, 16],
-          [0, -16],
-        ])
-          if (walkable(x + dx, y + dy) && !seen.has(x + dx + "," + (y + dy)))
-            q.push([x + dx, y + dy]);
-      }
-      for (const n of targets().filter((n) => n.kind === "story"))
-        if (!points.some(([x, y]) => Math.hypot(x - n.x, y - n.y) < 59))
-          failures.push(id + ":" + n.id);
-    }
-    state.room = "c0";
-    state.map = 2;
-    state.flags = { slideStory: true };
-    state.bossGrace = 0;
-    const p = currentRoom().objects.find((o) => o[3] === "fish-ambush");
-    state.x = p[1] - 60;
-    state.y = p[2];
-    return failures;
-  });
-  expect(failures).toEqual([]);
-  await page.waitForTimeout(80);
-  await flush(page);
-  expect(await page.evaluate(() => battle.id)).toBe("fishAmbush");
-  expect(await page.evaluate(() => battle.name)).toBe("The Angry Fish School");
 });

@@ -4,7 +4,7 @@ const path = require("node:path");
 const app = express();
 const port = process.env.PORT || 8080;
 
-for (const asset of ["game.js", "world.js", "story.js", "style.css"]) {
+for (const asset of ["game.js", "world.js", "style.css"]) {
   app.get("/" + asset, (_req, res) =>
     res.sendFile(path.join(__dirname, asset)),
   );
