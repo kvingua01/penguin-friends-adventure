@@ -617,5 +617,110 @@ window.PENGUIN_WORLD = (() => {
     "Push the archive book cart onto the golden plate to light the lantern and unlock the pearl chamber.";
   rooms.k6.note =
     "The three sluices rise from shallow to deep. The western hint pedestal explains the order.";
+  // Re-stage the opening around the authors' books; the kingdom ending remains.
+  function storyPoint(room, id, name, x, y) {
+    const r = rooms[room];
+    r.objects.push([
+      "story",
+      Math.round(64 + (x - 64) * r.scaleX),
+      Math.round(82 + (y - 82) * r.scaleY),
+      id,
+      name,
+    ]);
+  }
+  rooms.h9.name = "Fishing Bay";
+  rooms.h9.note =
+    "Flippy and Slippy cannot swim yet. Stay near the iceberg and call your parents if you need help.";
+  rooms.h1.note =
+    "Slippy is one month old, just like Flippy. He was born on February 16. He likes fish.";
+  rooms.h4.note =
+    "Belly skating is fun with a friend. Get home before your parents return!";
+  rooms.b1.name = "Green Ground";
+  rooms.b1.theme = "jungle";
+  rooms.b1.props = rooms.b1.props.filter((p) => p[0] !== "hut");
+  rooms.b3.npcs = [];
+  rooms.b3.note = "A tall green plant grows here. Slippy is curious about it.";
+  rooms.b0.note =
+    "The tan ground feels soft, like snow. But it is HOT! The green ground east of here looks cooler.";
+  rooms.b9.name = "Shallow-water Beach";
+  rooms.b9.note =
+    "A baby orca lurks in the shallow water. These baby penguins cannot fish or swim yet.";
+  for (const id of ["b2", "b5", "b7"])
+    rooms[id].note =
+      "Bent yellow things grow here. The friends will need food after their fish feast.";
+  rooms.b8.note =
+    "The island is quiet. Flippy and Slippy have not met any other penguins here.";
+  const coastNames = {
+    c0: "The Western Shore",
+    c1: "Warm Sand",
+    c2: "Echo Cave",
+    c3: "The Boonona Pile",
+    c4: "Palm-tree Shade",
+    c5: "Pippy’s Iceberg",
+  };
+  for (const [id, name] of Object.entries(coastNames)) {
+    rooms[id].name = name;
+    rooms[id].safe = true;
+    rooms[id].note =
+      "Explore the island with Flippy, Slippy, and their new friend Pippy.";
+  }
+  rooms.c1.props = rooms.c1.props.filter((p) => p[0] !== "wreck");
+  rooms.c4.npcs = [];
+  rooms.c4.theme = "jungle";
+  rooms.c4.props = rooms.c4.props.filter((p) => p[0] !== "hut");
+  const mountainNames = {
+    g0: "Mountain Foot",
+    g1: "The Snowy Trail",
+    g2: "Frost Lookout",
+    g3: "Belly-slide Ridge",
+    g4: "Cold Cavern",
+    g5: "The Highest Peak",
+  };
+  for (const [id, name] of Object.entries(mountainNames)) {
+    const r = rooms[id];
+    r.name = name;
+    r.theme = id === "g4" ? "icecave" : "ridge";
+    r.note =
+      "Pippy is fishing below. Flippy and Slippy climb with plenty of boononas. The highest peak lies east.";
+    r.encounters = ["snowcrab", "gull"];
+    r.props = r.props.map((p) => [
+      ["pillar", "tower"].includes(p[0]) ? "crystal" : p[0],
+      ...p.slice(1),
+    ]);
+    r.objects = r.objects.filter((o) => o[0] !== "boss");
+  }
+  rooms.g4.puzzle.name = "The Snowdrift Lift";
+  rooms.g4.puzzle.hint =
+    "Push the ice crate up twice, then right twice onto the plate. Reset it if it gets stuck.";
+  rooms.g5.safe = true;
+  rooms.g5.encounters = [];
+  storyPoint("h9", "fishing-bay", "The little iceberg", 500, 340);
+  storyPoint("h4", "lake-play", "Belly-skating lake", 700, 250);
+  storyPoint("b1", "cool-ground", "Cool green ground", 400, 340);
+  storyPoint("b3", "itchy-plant", "The tall green plant", 400, 340);
+  storyPoint("b9", "fish-feast", "The fish feast", 420, 350);
+  storyPoint("c3", "show-fruit", "Show Pippy the boononas", 400, 240);
+  storyPoint("c4", "pippy-shade", "Rest in the palm shade", 650, 280);
+  storyPoint("g5", "summit-trick", "The highest sliding peak", 640, 280);
+  storyPoint("c5", "flippy-version", "Tell Flippy’s version", 480, 380);
+  storyPoint("c0", "fish-ambush", "Splashing shallow water", 550, 300);
+  const slippyRoom = rooms.c5;
+  slippyRoom.npcs.push([
+    "Slippy",
+    Math.round(64 + (440 - 64) * slippyRoom.scaleX),
+    Math.round(82 + (300 - 82) * slippyRoom.scaleY),
+    "slippy",
+  ]);
+  for (const r of Object.values(rooms)) {
+    const points = r.objects.filter((o) => o[0] === "story");
+    r.props = r.props.filter(
+      (p) => !points.some((o) => Math.hypot(p[1] - o[1], p[2] - o[2]) < 130),
+    );
+  }
+  rooms.c5.props = rooms.c5.props.map((p) =>
+    p[0] === "boat" ? ["iceberg", ...p.slice(1)] : p,
+  );
+  delete conversations.tula;
+  delete conversations.drift;
   return { rooms, starts, conversations };
 })();

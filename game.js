@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id),
   ctx = canvas.getContext("2d");
 const W = 960,
   H = 576,
-  SAVE_KEY = "penguin-friends-story-v1";
+  SAVE_KEY = "penguin-friends-books-v1";
 const keys = new Set(),
   movement = [
     "w",
@@ -20,7 +20,7 @@ const keys = new Set(),
 const items = {
   fish: { name: "Silver fish", heal: 35 },
   boonona: { name: "Boonona", heal: 25 },
-  soup: { name: "Pippy’s soup", heal: 65 },
+  soup: { name: "Warm fish soup", heal: 65 },
 };
 const palettes = [
   {
@@ -67,14 +67,17 @@ const palettes = [
   },
 ];
 const WORLD = window.PENGUIN_WORLD;
+const STORY = window.PENGUIN_STORY;
+palettes[3] = { ...palettes[0] };
+palettes[2] = { ...palettes[1] };
 const maps = [
   { name: "Frostbell Island", chapter: 1, tag: "A SMALL BEGINNING" },
   { name: "Boonona Bay", chapter: 2, tag: "SOMETHING BEYOND THE SNOW" },
-  { name: "The Quiet Cove", chapter: 3, tag: "AN EMPTY PLACE BESIDE YOU" },
+  { name: "Pippy’s Visit", chapter: 3, tag: "AN EMPTY PLACE BESIDE YOU" },
   {
-    name: "Orca Kingdom · Sea Gate",
+    name: "The Snowy Mountain",
     chapter: 3,
-    tag: "COURAGE IS GOING ANYWAY",
+    tag: "A VERY COOL TRICK",
   },
   {
     name: "Orca Kingdom · Tidal Halls",
@@ -132,7 +135,7 @@ const enemies = {
     xp: 2,
   },
   parents: {
-    name: "Mama & Papa",
+    name: "Slippy · Playful Wrestling",
     hp: 112,
     damage: 7,
     pattern: "rain",
@@ -140,7 +143,7 @@ const enemies = {
     boss: true,
     parents: true,
     intro:
-      "“The sea is dangerous, Flippy.” Your parents block the way. Maybe you can show them you’re ready.",
+      "Slippy tackles Flippy in a friendly wrestling match. Use ACT to call a time-out.",
     xp: 2,
   },
   baby: {
@@ -150,7 +153,8 @@ const enemies = {
     pattern: "wave",
     color: "#91b6c6",
     boss: true,
-    intro: "A baby orca splashes into the shallows. “That’s MY island lunch!”",
+    intro:
+      "A baby orca spots two tiny penguins in the water. Peck to scare him away!",
     xp: 3,
   },
   gate: {
@@ -505,7 +509,8 @@ function toggleSound() {
 }
 function updateHud() {
   const m = currentRoom();
-  $("chapter").textContent = "CHAPTER 0" + m.chapter + " · " + m.tag;
+  $("chapter").textContent =
+    (m.chapter <= 3 ? "BOOK 0" + m.chapter : "THE RESCUE") + " · " + m.tag;
   $("location").textContent =
     m.name +
     " · " +
@@ -528,36 +533,69 @@ function objective() {
   switch (state.map) {
     case 0:
       return !f.metSlippy
-        ? "Find Slippy in Lantern Square, east of your home."
-        : !f.parents
-          ? "Return home and talk to Papa. Show your parents you’re ready."
-          : "Follow the forest road east to Frostbell Harbor.";
+        ? "Meet Slippy in Lantern Square, east of home."
+        : !f.firstRescue
+          ? "Go fishing with Slippy at Fishing Bay."
+          : !f.parentsAway
+            ? "Talk to Mama at home."
+            : !f.lakePlay
+              ? "Meet Slippy for belly skating at Mirrorfrost Lake."
+              : !f.homeFeast
+                ? "Return home and talk to Mama before bedtime."
+                : !f.wrestled
+                  ? "Find Slippy in Lantern Square for your morning walk."
+                  : "Use your secret squeaks and return to Fishing Bay.";
     case 1:
-      return fruitCount() < 3
-        ? `Explore the island and gather boononas (${fruitCount()} / 3).`
-        : !f.baby
-          ? "Face Baby Orca at Breakwater Beach, east of Golden Orchard."
-          : "Leave from the eastern side of Breakwater Beach.";
+      return !f.hotSand
+        ? "The sand is HOT! Run east to the cool green ground."
+        : !f.itchyPlant
+          ? "Explore the tall green plant on Canopy Walk."
+          : !f.baby
+            ? "Go to the shallow water at the eastern beach."
+            : !f.fishFeast
+              ? "Share the fish and rest at Shallow-water Beach."
+              : fruitCount() < 3
+                ? "Find food at the three yellow-fruit groves (" +
+                  fruitCount() +
+                  " / 3)."
+                : "Follow the mysterious shape beyond the eastern beach.";
     case 2:
       return !f.pippy
-        ? "Find Pippy at his mooring, beyond Shipwreck Strand and Broken Jetty."
-        : "Board the ferry at Pippy’s Mooring.";
+        ? "Meet the sailor on Pippy’s Iceberg at the eastern shore."
+        : !f.shownFruit
+          ? "Show Pippy the boonona pile on the island walk."
+          : !f.palmShade
+            ? "Rest together in Palm-tree Shade."
+            : !f.islandTour
+              ? "Return to Pippy’s Iceberg for an island tour."
+              : !f.slideCrash
+                ? "Flippy and Slippy are exploring the snowy mountain."
+                : !f.pippyVersion
+                  ? "Ask Pippy what happened while he was fishing."
+                  : !f.slippyVersion
+                    ? "Ask Slippy what really happened on the mountain."
+                    : !f.flippyVersion
+                      ? "Tell Flippy’s version beside Pippy’s iceberg."
+                      : !f.fishAmbush
+                        ? "Investigate the splashing at the western shore."
+                        : "Return to Pippy to continue the adventure.";
     case 3:
-      return !f.gate
-        ? "Explore the barracks, then challenge Captain Undertow at the Sea Gate."
-        : "The sea gate is open. Enter the kingdom to the east.";
+      return "Climb to the Highest Peak with Slippy. Pippy is fishing below.";
     case 4:
       return !f.key1 || !f.key2
-        ? `Defeat both wardens and collect their seals (${Number(!!f.key1) + Number(!!f.key2)} / 2).`
-        : "Bring both seals to the Two-Seal Door, beyond the Gallery of Crowns.";
+        ? "Find Slippy: collect the pearl and tide seals (" +
+            (Number(!!f.key1) + Number(!!f.key2)) +
+            " / 2)."
+        : "Bring both seals to the Two-Seal Door.";
     case 5:
       return !f.king
-        ? "Cross the royal halls and face King Orca in the throne room."
+        ? "Face King Orca and get the key to Slippy’s cage."
         : !f.ending
-          ? "Open Slippy’s cage. Keep your promise."
-          : "Slippy is safe. A new horizon is waiting.";
+          ? "Free Slippy. Bring your best friend home."
+          : "Slippy is safe. Wherever you go next, go together.";
   }
 }
+
 function fruitCount() {
   return ["fruit1", "fruit2", "fruit3"].filter((k) => state.flags[k]).length;
 }
@@ -592,10 +630,11 @@ function title() {
   dialogue = null;
   $("dialogue").hidden = true;
   $("battleControls").hidden = true;
+  updateCamera(1, true);
   updateHud();
   const saved = readSave();
   panel(
-    '<div class="eyebrow">48 SCROLLING ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Walking can trigger battles outside safe areas.</small>',
+    '<div class="eyebrow">48 SCROLLING ROOMS · THE AUTHORS’ STORIES</div><h2>Fish, friends,<br>and a drifting iceberg.</h2><p>Follow Flippy and Slippy from their first meeting to hot sand, boononas, Pippy’s visit, a snowy mountain, and an unexpected fish battle. Then continue into the Orca Kingdom to rescue Slippy.</p><small>Move: WASD / arrows · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Walking can trigger battles outside safe areas.<br>Stories by Hudson, Kenny, and Rowan.<br>This story edition uses a new save slot; your previous adventure is preserved separately.</small>',
   );
   const bs = [];
   if (saved)
@@ -629,24 +668,274 @@ function title() {
   bs.push(["How to play", instructions]);
   panelButtons(bs);
 }
+function storySay(id, done) {
+  const scenes = Array.isArray(id) ? id : STORY[id];
+  let index = 0;
+  const next = () => {
+    if (index >= scenes.length) {
+      if (done) done();
+      return;
+    }
+    const [name, ...lines] = scenes[index++];
+    say(name, lines, next);
+  };
+  next();
+}
+function storyChoice(title, body, label, done) {
+  panel(
+    '<div class="eyebrow">PENGUIN FRIENDS</div><h2>' +
+      title +
+      "</h2><p>" +
+      body +
+      "</p>",
+  );
+  panelButtons([
+    [
+      label,
+      () => {
+        closePanel();
+        done();
+        updateHud();
+        save();
+      },
+      true,
+    ],
+  ]);
+}
+function storyVisible(id) {
+  const f = state.flags;
+  return (
+    {
+      "lake-play": f.parentsAway && !f.lakePlay,
+      "cool-ground": !f.hotSand,
+      "itchy-plant": f.hotSand && !f.itchyPlant,
+      "fish-feast": f.baby && !f.fishFeast,
+      "show-fruit": f.pippy && !f.shownFruit,
+      "pippy-shade": f.shownFruit && !f.palmShade,
+      "summit-trick": !f.slideCrash,
+      "flippy-version": f.slideCrash && !f.flippyVersion,
+      "fish-ambush": f.slideStory && !f.fishAmbush,
+    }[id] ?? true
+  );
+}
+function storyEvent(id) {
+  const f = state.flags;
+  switch (id) {
+    case "fishing-bay":
+      if (!f.metSlippy) {
+        say("FLIPPY", [
+          "I should meet that other penguin in Lantern Square first.",
+        ]);
+        return;
+      }
+      if (!f.firstRescue) {
+        storySay("firstFishing", () =>
+          storyChoice(
+            "An iceberg to the rescue",
+            "Neither baby penguin can swim. The little iceberg is their safest place to wait.",
+            "Climb onto the iceberg",
+            () =>
+              storySay("rescue", () => {
+                f.firstRescue = true;
+                changeMap(0);
+                notify("Your moms brought you safely home. Talk to Mama.");
+              }),
+          ),
+        );
+        return;
+      }
+      if (!f.wrestled) {
+        say("SLIPPY", [
+          "Let’s stay out of the water for now. There’s still plenty to do at home and the frozen lake.",
+        ]);
+        return;
+      }
+      storySay("drift", () =>
+        storyChoice(
+          "No way home",
+          "The iceberg drifts away. Book One ends with the friends far from shore.",
+          "Follow the drifting iceberg",
+          () => {
+            f.adrift = true;
+            changeMap(1);
+            storySay("island");
+          },
+        ),
+      );
+      break;
+    case "lake-play":
+      storyChoice(
+        "Belly skating!",
+        "The frozen lake is slippery. Slide and play with Slippy, then sneak home before your parents return.",
+        "Go belly skating",
+        () =>
+          storySay("lakePlay", () => {
+            f.lakePlay = true;
+            notify("Time to go home and talk to Mama.");
+          }),
+      );
+      break;
+    case "cool-ground":
+      storySay("shade", () => {
+        f.hotSand = true;
+      });
+      break;
+    case "itchy-plant":
+      storySay("plant", () => {
+        f.itchyPlant = true;
+      });
+      break;
+    case "fish-feast":
+      storyChoice(
+        "A feast to celebrate",
+        "The fish from Baby Orca will feed both friends for a day.",
+        "Share the fish and rest",
+        () => {
+          f.fishFeast = true;
+          state.hp = state.maxHp;
+          storySay("nextDay");
+        },
+      );
+      break;
+    case "show-fruit":
+      storySay("showFruit", () => {
+        f.shownFruit = true;
+      });
+      break;
+    case "pippy-shade":
+      storySay("pippyShade", () => {
+        f.palmShade = true;
+      });
+      break;
+    case "summit-trick":
+      storySay("summit", () =>
+        storyChoice(
+          "Flippy’s cool trick",
+          "Jump, spin, land on your belly… what could possibly go wrong?",
+          "Try the spinning belly slide",
+          () => {
+            f.slideCrash = true;
+            changeMap(2);
+            enterRoom("c5", "E");
+            storySay("crash");
+          },
+        ),
+      );
+      break;
+    case "flippy-version":
+      storySay("flippyVersion", () => {
+        f.flippyVersion = true;
+        updateSlideStory();
+      });
+      break;
+    case "fish-ambush":
+      startStoryAmbush();
+      break;
+  }
+}
+function updateSlideStory() {
+  const f = state.flags;
+  f.slideStory = !!(f.pippyVersion && f.slippyVersion && f.flippyVersion);
+  updateHud();
+}
+function startStoryBaby() {
+  const f = state.flags;
+  if (!f.itchyPlant) {
+    say("SLIPPY", [
+      "Let’s explore the green ground and that tall plant before going into the water.",
+    ]);
+    return;
+  }
+  storySay("baby", () => {
+    f.babyEncounter = true;
+    startBattle("baby", "baby");
+  });
+}
+function startStoryAmbush() {
+  if (!state.flags.slideStory || state.flags.fishAmbush) return;
+  storySay("ambush", () => {
+    startBattle("reef", "fishAmbush");
+    battle.name = "The Angry Fish School";
+    battle.message = "The fish attack! Flippy prepares his penguin karate.";
+    battleUI();
+  });
+}
+function storyContinuation() {
+  storySay("continuation", () =>
+    storyChoice(
+      "Bring Slippy home",
+      "Pippy will sail Flippy to the Orca Kingdom. The rescue ending continues from here.",
+      "Go after Slippy",
+      () => {
+        state.flags.captured = true;
+        state.flags.kingdomHelp = true;
+        changeMap(4);
+        say(
+          "PIPPY",
+          [
+            "This is as far as I go. I’m sorry, Flippy. I’ll keep the iceberg ready.",
+          ],
+          () => say("FLIPPY", ["I’m frightened, too. But Slippy is waiting."]),
+        );
+      },
+    ),
+  );
+}
+function storyBattleDone(b, outcome) {
+  const f = state.flags;
+  if (b.parents) {
+    f.wrestled = true;
+    f.parents = true;
+    f.secretSqueaks = true;
+    storySay("secretSqueaks");
+    return true;
+  }
+  if (b.type === "baby" && outcome === "win") {
+    storySay("babyWon", () => storyEvent("fish-feast"));
+    return true;
+  }
+  if (b.id === "fishAmbush") {
+    if (outcome === "flee") {
+      delete f.fishAmbush;
+      say("FLIPPY", [
+        "The fish are still circling the western shore. We can try again when we’re ready.",
+      ]);
+      return true;
+    }
+    f.book3Complete = true;
+    storySay("ambushWon");
+    return true;
+  }
+  return false;
+}
+function updateStoryWorld() {
+  const f = state.flags;
+  if (mode !== "world" || dialogue || !$("overlay").hidden) return;
+  if (
+    state.map === 2 &&
+    state.room === "c0" &&
+    f.slideStory &&
+    !f.fishAmbush &&
+    state.bossGrace <= 0
+  ) {
+    const p = currentRoom().objects.find((o) => o[3] === "fish-ambush");
+    if (p && Math.hypot(state.x - p[1], state.y - p[2]) < 90)
+      startStoryAmbush();
+  }
+}
+
 function newGame() {
   state = fresh();
   mode = "world";
   updateCamera(1, true);
   closePanel();
   updateHud();
-  say(
-    "FLIPPY",
-    [
-      "The sea looks bigger every morning. Today, I’m finally going to see what’s out there.",
-      "Slippy said he’d meet me on the path. An adventure is better with a friend.",
-    ],
-    () => save(),
-  );
+  storySay("intro", save);
 }
+
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular fights happen while you walk outside safe areas; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press Enter, E, Space, or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular fights happen while you walk outside safe areas; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press Enter, E, Space, or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from. Slippy’s playful tutorial also has ACT and can be ended with FLEE.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -777,6 +1066,10 @@ function inventory(inBattle = false) {
 function activeObjects() {
   const m = currentRoom();
   return m.objects.filter((o) => {
+    if (o[0] === "story") return storyVisible(o[3]);
+    if (o[0] === "fruit" && !state.flags.fishFeast) return false;
+    if (o[0] === "boss" && o[3] === "baby" && !state.flags.itchyPlant)
+      return false;
     const [type, , , id] = o;
     if (type === "fruit" || type === "chest" || type === "boss")
       return !state.flags[id];
@@ -799,6 +1092,7 @@ function targets() {
       kind: o[0],
       name:
         {
+          story: o[4],
           shrine: "Rest lantern",
           chest: "Supply chest",
           fruit: "Boonona grove",
@@ -831,10 +1125,10 @@ function targets() {
       name:
         d.to === "region"
           ? [
-              "Sail to Boonona Bay",
-              "Follow the current",
-              "Board Pippy’s ferry",
-              "Enter Orca Kingdom",
+              "Climb onto the iceberg",
+              "Investigate the distant shape",
+              "Continue with Pippy",
+              "Try Flippy’s trick",
               "Open the royal halls",
             ][state.map]
           : WORLD.rooms[d.to].name,
@@ -859,6 +1153,9 @@ function interact() {
   if (mode !== "world" || !nearby) return;
   const n = nearby;
   switch (n.kind) {
+    case "story":
+      storyEvent(n.id);
+      break;
     case "puzzle":
       interactPuzzle(n);
       break;
@@ -868,12 +1165,7 @@ function interact() {
     case "enemy":
       break;
     case "boss":
-      if (n.id === "baby" && fruitCount() < 3) {
-        say("BABY ORCA", [
-          "No snacks, no passage! There are three boonona groves on this island.",
-        ]);
-        return;
-      }
+      if (n.id === "baby") startStoryBaby();
       break;
     case "shrine":
       state.hp = state.maxHp;
@@ -898,15 +1190,21 @@ function interact() {
       state.inventory.fish += 2;
       state.inventory.soup++;
       say("SUPPLIES", [
-        "Two silver fish and a jar of Pippy’s soup. Someone packed with love.",
+        "Two silver fish and a jar of Warm fish soup. Someone packed with love.",
       ]);
       break;
     case "fruit":
       state.flags[n.id] = true;
       state.inventory.boonona += 2;
-      say("FLIPPY", [
-        `Two sweet boononas! That’s grove ${fruitCount()} of 3. One for now, one for later.`,
-      ]);
+      if (!state.flags.boononasNamed) {
+        state.flags.boononasNamed = true;
+        storySay("boononas");
+      } else
+        say("SLIPPY", [
+          "More boononas for our pile! We have visited " +
+            fruitCount() +
+            " of the three groves.",
+        ]);
       break;
     case "journal":
       say("EXPLORER’S NOTE", [currentRoom().note]);
@@ -966,70 +1264,122 @@ function interact() {
   }
 }
 function talk(id) {
-  if (WORLD.conversations[id]) {
-    if (!state.flags["gift-" + id]) {
-      state.flags["gift-" + id] = true;
-      if (id === "drift") state.inventory.soup++;
-      else if (id === "moss") state.inventory.fish += 2;
-    }
-    say(id.toUpperCase(), WORLD.conversations[id]);
-    return;
-  }
   const f = state.flags;
   if (id === "slippy") {
-    if (state.map === 0 && !f.metSlippy) {
-      f.metSlippy = true;
+    if (state.map === 0) {
+      if (!f.metSlippy) {
+        storySay("meetSlippy", () => {
+          f.metSlippy = true;
+        });
+        return;
+      }
+      if (f.homeFeast && !f.wrestled) {
+        storySay("wrestling", () => startBattle("parents", "wrestling"));
+        return;
+      }
       say("SLIPPY", [
-        "Flippy! I heard there’s an island where boononas grow on trees. Well… all boononas do. You know what I mean.",
-        "Your parents are waiting near the igloo. If we’re going to leave, we should tell them together.",
+        !f.firstRescue
+          ? "Let’s go fishing at the bay!"
+          : !f.parentsAway
+            ? "Your parents brought you home. Talk to your mama."
+            : !f.lakePlay
+              ? "Let’s belly skate at the frozen lake!"
+              : !f.homeFeast
+                ? "We should get home before our parents return."
+                : "Squeak-squeak! Come here! Back to the bay?",
       ]);
-    } else if (state.map === 0)
-      say("SLIPPY", [
-        "Your papa looks serious. Try talking to him. I’ll be right here.",
-      ]);
-    else
-      say("SLIPPY", [
-        fruitCount() < 3
-          ? "Three boonona groves, an entire island, and absolutely no reason to skip lunch."
-          : !f.baby
-            ? "That baby orca is blocking the eastern shallows. I believe in you, Flippy."
-            : "A new current! I wonder where it goes.",
-      ]);
-  } else if (id === "mama")
-    say("MAMA", [
-      f.parents
-        ? "The world can be rough. Remember: being brave doesn’t mean being alone."
-        : "We know you want to explore. Talk to Papa. We just need to know you’ll be safe.",
+      return;
+    }
+    if (state.map === 2 && f.slideCrash) {
+      storySay("slippyVersion", () => {
+        f.slippyVersion = true;
+        updateSlideStory();
+      });
+      return;
+    }
+    say("SLIPPY", [
+      !f.baby
+        ? "I like fish, but remember… we can’t swim yet!"
+        : !f.fishFeast
+          ? "That fish feast was delicious. Let’s rest before tomorrow."
+          : fruitCount() < 3
+            ? "Let’s find something edible. Those yellow things look interesting."
+            : "Boononas! Best discovery ever.",
     ]);
-  else if (id === "parents") {
-    if (f.parents)
-      say("PAPA", [
-        "You showed us your courage. The eastern dock is ready. Take care of each other.",
-      ]);
-    else if (!f.metSlippy)
-      say("PAPA", [
-        "Find Slippy first, little one. Big plans deserve a good friend.",
-      ]);
-    else startBattle("parents", "parents");
-  } else if (id === "pippy") {
+    return;
+  }
+  if (id === "mama" || id === "parents") {
+    if (f.firstRescue && !f.parentsAway) {
+      storySay("parentsAway", () => {
+        f.parentsAway = true;
+      });
+      return;
+    }
+    if (f.lakePlay && !f.homeFeast) {
+      storySay("meal", () =>
+        storyChoice(
+          "Sleep standing up",
+          "The friends have full bellies. Tomorrow is another day.",
+          "Sleep until morning",
+          () => {
+            f.homeFeast = true;
+            state.inventory.fish = Math.min(999, state.inventory.fish + 10);
+            state.hp = state.maxHp;
+          },
+        ),
+      );
+      return;
+    }
+    say(id === "mama" ? "MAMA" : "PAPA", [
+      "You’re only one month old, little one. Stay close to our feet. You’re too young to swim.",
+    ]);
+    return;
+  }
+  if (id === "pippy") {
     if (!f.pippy) {
-      f.pippy = true;
-      say("PIPPY", [
-        "An orca patrol took your friend? Then there’s only one place they’re heading. The Orca Kingdom.",
-        "I can get you to the sea gate. After that… I’m a sailor, not a soldier.",
-        "Board my boat when you’re ready. There’s soup in the supply chests. Courage works better with a full belly.",
-      ]);
-    } else
-      say("PIPPY", [
-        "The boat’s waiting at the eastern dock. We sail when you’re ready.",
-      ]);
-  } else if (id === "pebble")
+      storySay("meetPippy", () => {
+        f.pippy = true;
+        state.inventory.fish++;
+      });
+      return;
+    }
+    if (f.book3Complete && !f.captured) {
+      storyContinuation();
+      return;
+    }
+    if (f.slideCrash) {
+      storySay("pippyVersion", () => {
+        f.pippyVersion = true;
+        updateSlideStory();
+      });
+      return;
+    }
+    say("PIPPY", [
+      !f.shownFruit
+        ? "Show me those boononas you told me about!"
+        : !f.palmShade
+          ? "This sand is hot. Shall we find some shade?"
+          : "My iceberg is ready for a tour.",
+    ]);
+    return;
+  }
+  if (id === "pebble") {
     say("PEBBLE", [
       "Not every orca agrees with the King. My name is Pebble. I keep the halls clean, mostly of terrible royal poetry.",
       "The pearl warden waits northwest. The tide warden waits southeast. You need both seals for the throne-room door.",
       "Your friend hasn’t stopped talking about you. Go prove him right.",
     ]);
+    return;
+  }
+  if (WORLD.conversations[id]) {
+    if (!f["gift-" + id]) {
+      f["gift-" + id] = true;
+      if (id === "moss") state.inventory.fish += 2;
+    }
+    say(id.toUpperCase(), WORLD.conversations[id]);
+  }
 }
+
 function signText() {
   return [
     "FROSTBELL ISLAND\nHome ↑ · Eastern dock →\nRest lanterns heal and save. Supply chests contain food.",
@@ -1043,62 +1393,73 @@ function signText() {
 function exitMap() {
   const f = state.flags;
   if (state.map === 0) {
-    if (!f.parents) {
-      say("FLIPPY", ["I should talk to my parents before we leave."]);
+    if (f.ending) {
+      changeMap(1);
       return;
     }
-    changeMap(1);
-    say("SLIPPY", [
-      "Sand! Trees! Flippy, this place has colors I’ve never eaten before.",
-      "Let’s visit all three boonona groves before we head onward.",
-    ]);
-  } else if (state.map === 1) {
-    if (!f.baby) {
-      say("FLIPPY", [
-        "Baby Orca is still guarding the passage. We need to face him first.",
-      ]);
+    storyEvent("fishing-bay");
+    return;
+  }
+  if (state.map === 1) {
+    if (f.ending) {
+      changeMap(2);
       return;
     }
-    changeMap(2);
-    f.captured = true;
-    say(
-      "NARRATOR",
-      [
-        "A dark shape cuts through the current. Then another. Orca soldiers surround the little raft.",
-        "“By order of the King!” A wave crashes between you and Slippy. When the spray clears, he is gone.",
-      ],
-      () =>
-        say("FLIPPY", [
-          "Slippy! …No. I’m not leaving without you.",
-          "There’s a sailor at the far dock. Maybe he knows where they went.",
-        ]),
+    if (!f.baby || !f.fishFeast || fruitCount() < 3) {
+      say("FLIPPY", ["Let’s finish exploring the island. " + objective()]);
+      return;
+    }
+    storySay("fruitFeast", () =>
+      storyChoice(
+        "Something in the distance",
+        "It looks like… another penguin on an iceberg!",
+        "Meet the sailor",
+        () => {
+          changeMap(2);
+        },
+      ),
     );
-  } else if (state.map === 2) {
-    if (!f.pippy) {
-      say("FLIPPY", [
-        "I shouldn’t borrow a stranger’s boat. I’ll talk to Pippy first.",
-      ]);
+    return;
+  }
+  if (state.map === 2) {
+    if (f.ending) {
+      changeMap(3);
       return;
     }
-    changeMap(3);
-    say(
-      "PIPPY",
-      [
-        "This is as far as I go, Flippy. The sea gate is just ahead.",
-        "I’m sorry. The King frightens me more than any storm. I’ll keep the boat ready.",
-      ],
-      () => say("FLIPPY", ["I’m frightened too. But Slippy is waiting."]),
-    );
-  } else if (state.map === 3) {
-    if (!f.gate) {
-      say("FLIPPY", ["Captain Undertow is blocking the sea gate."]);
+    if (!f.pippy || !f.shownFruit || !f.palmShade) {
+      say("PIPPY", ["Let’s get to know each other first. " + objective()]);
       return;
     }
-    changeMap(4);
-    say("FLIPPY", [
-      "Slippy’s in here somewhere. Two seals. One throne room. One friend to bring home.",
-    ]);
-  } else if (state.map === 4) {
+    if (!f.islandTour) {
+      storySay("tour", () =>
+        storyChoice(
+          "Snow on the mountain",
+          "Pippy goes fishing while Flippy and Slippy climb, carrying plenty of boononas.",
+          "Climb the snowy mountain",
+          () => {
+            f.islandTour = true;
+            changeMap(3);
+          },
+        ),
+      );
+      return;
+    }
+    if (!f.fishAmbush) {
+      say("FLIPPY", [objective()]);
+      return;
+    }
+    storyContinuation();
+    return;
+  }
+  if (state.map === 3) {
+    if (f.ending) {
+      changeMap(4);
+      return;
+    }
+    storyEvent("summit-trick");
+    return;
+  }
+  if (state.map === 4) {
     if (!f.key1 || !f.key2) {
       say("SEALED DOOR", [
         "Two hollows in the stone. A pearl and a tide. Both wardens hold a seal.",
@@ -1111,6 +1472,7 @@ function exitMap() {
     ]);
   }
 }
+
 function changeMap(index) {
   state.map = index;
   state.room = WORLD.starts[index];
@@ -1133,7 +1495,7 @@ function ending() {
   mode = "world";
   save();
   panel(
-    '<div class="eyebrow">THE END · AND THE BEGINNING</div><h2>Some things are bigger<br>than the ocean.</h2><p>The King lowers his crown. For the first time, the throne room is quiet enough to hear a small voice.</p><p>“I only wanted a friend,” he says.</p><p>“Then ask,” Flippy answers. “You don’t have to take one.”</p><p>Pippy’s boat carries two little penguins home beneath a sky full of stars. There are boononas in the bag, stories to tell, and a place beside Flippy that will never be empty.</p><small>Thank you for playing all four chapters.<br>Original story adaptation, pixel art, and synthesized audio.<br>Expanded edition — your feedback shapes what comes next.</small>',
+    '<div class="eyebrow">THE END · AND THE BEGINNING</div><h2>Some things are bigger<br>than the ocean.</h2><p>The King lowers his crown. For the first time, the throne room is quiet enough to hear a small voice.</p><p>“I only wanted a friend,” he says.</p><p>“Then ask,” Flippy answers. “You don’t have to take one.”</p><p>Pippy’s iceberg carries two little penguins home beneath a sky full of stars. There are boononas in the bag, stories to tell, and a place beside Flippy that will never be empty.</p><small>Thank you for playing all four chapters.<br>Stories by Hudson, Kenny, and Rowan. Original game art and synthesized audio.<br>Expanded edition — your feedback shapes what comes next.</small>',
   );
   panelButtons([
     [
@@ -1238,8 +1600,8 @@ function act() {
   battle.acts++;
   battle.message =
     battle.acts === 1
-      ? "“I’m scared, too. But I want to see the world with Slippy.” Your parents listen."
-      : "“We’ll take care of each other.” Your parents step aside. FLEE is now unlocked.";
+      ? "“We’re only playing!” Slippy pauses the wrestling match."
+      : "“Let’s make secret squeaks!” Slippy agrees. FLEE is now unlocked.";
   tone(523, 0.2);
   beginDodge();
 }
@@ -1312,7 +1674,7 @@ function finishBattle(outcome) {
     state.inventory.fish++;
     if (b.boss) state.inventory.soup++;
     b.message = b.parents
-      ? "Your parents see your determination. The eastern dock is open."
+      ? "The friendly wrestling match ends. Time for secret squeaks."
       : b.type === "king"
         ? "The King’s crown falls silent. You found the cage key. Go to Slippy!"
         : "Victory! You found a silver fish" +
@@ -1322,7 +1684,7 @@ function finishBattle(outcome) {
     if (b.parents) state.flags.parents = true;
     else state.flags[b.id] = true;
     b.message = b.parents
-      ? "Your parents step aside. “Be brave. Be kind. Come home.”"
+      ? "Time-out! The friends slip away together."
       : "You slip past while the enemy catches its breath.";
   } else {
     b.message =
@@ -1349,18 +1711,9 @@ function finishBattle(outcome) {
     closePanel();
     updateHud();
     save();
+    if (outcome !== "lose" && storyBattleDone(b, outcome)) return;
     if (outcome !== "lose") {
-      if (b.parents)
-        say("MAMA & PAPA", [
-          "We can’t keep you little forever. Take care of Slippy, and let him take care of you.",
-          "The eastern dock is ready. Your story belongs to you now.",
-        ]);
-      else if (b.type === "baby")
-        say("BABY ORCA", [
-          "All right! You’re tougher than you look. The current is yours.",
-          "…If you see my dad, tell him I’m not ready to come home yet.",
-        ]);
-      else if (b.type === "gate")
+      if (b.type === "gate")
         say("CAPTAIN UNDERTOW", [
           "Nobody has crossed this gate for a friend before. I hope you find yours.",
         ]);
@@ -1466,22 +1819,17 @@ const ATTACKS = Object.fromEntries(
       "Stay out of the sentry’s marked sight line.",
       1.05,
     ],
-    [
-      "parents.snow",
-      "Snowball Practice",
-      "Dodge the soft, slow snowballs.",
-      0.8,
-    ],
+    ["parents.snow", "Snowball Tussle", "Dodge the soft, slow snowballs.", 0.8],
     [
       "parents.lesson",
-      "Follow the Safe Lane",
-      "Find the wide opening Mama leaves for you.",
+      "Playful Feint",
+      "Find the wide opening Slippy leaves for you.",
       1.2,
     ],
     [
       "parents.hugs",
-      "Overprotective Hugs",
-      "Slip between Papa’s widening snow rings.",
+      "Big Penguin Hugs",
+      "Slip between Slippy’s widening snow rings.",
       1.25,
     ],
     ["baby.breach", "Little Breach", "Move out of the splash lane.", 1.16],
@@ -2256,7 +2604,7 @@ function updateBattle(dt) {
     b.hazards = [];
     b.message =
       b.parents && b.acts >= 2
-        ? "Your parents believe in you. FLEE is unlocked."
+        ? "The wrestling match can end peacefully. FLEE is unlocked."
         : b.phaseLevel === 3
           ? "The boss is tiring. Stay focused on the next pattern."
           : b.phaseLevel === 2
@@ -2359,7 +2707,8 @@ function updateWorld(dt) {
           nearby.name
         : "Explore · M opens your room map · Rest lanterns heal & save";
   if ($("hint").textContent !== text) $("hint").textContent = text;
-  updateEncounters(dt, walked);
+  updateStoryWorld();
+  if (mode === "world" && !dialogue) updateEncounters(dt, walked);
 }
 // All illustrations below are drawn specifically for this game, without external assets.
 function updateEncounters(dt, walked) {
@@ -2370,13 +2719,8 @@ function updateEncounters(dt, walked) {
     (n) => n.kind === "boss" && Math.hypot(n.x - state.x, n.y - state.y) < 68,
   );
   if (boss && state.bossGrace <= 0) {
-    if (boss.id === "baby" && fruitCount() < 3) {
-      if (!state.flags["baby-warning"]) {
-        state.flags["baby-warning"] = true;
-        say("BABY ORCA", [
-          "Bring snacks from all three groves before you cross my beach!",
-        ]);
-      }
+    if (boss.id === "baby" && !state.flags.babyEncounter) {
+      startStoryBaby();
       return;
     }
     startBattle(boss.id, boss.id);
@@ -2608,8 +2952,7 @@ function creature(type, x, y, scale = 1) {
   ctx.scale(scale, scale);
   const c = enemies[type]?.color || "#b9cbd0";
   if (type === "parents") {
-    penguin(-24, 0, "#c5b5db");
-    penguin(26, 0, "#bdcdd9");
+    penguin(0, 0, "#a5cddd");
   } else if (["king", "baby", "gate", "guard", "key1", "key2"].includes(type)) {
     orca(0, 0, type === "baby" ? 0.85 : 1, c, type === "king");
     if (type === "gate" || type === "guard") {
@@ -2829,6 +3172,14 @@ function prop(p) {
       );
     return;
   }
+  if (t === "iceberg") {
+    ellipse(x, y + 5, 60, 20, "#5d95b1");
+    rect(x - 50, y - 16, 100, 26, "#91bfce");
+    rect(x - 42, y - 25, 84, 20, "#d4eeeb");
+    rect(x - 28, y - 32, 56, 12, "#eff7e9");
+    rect(x - 38, y - 19, 48, 4, "#e4f3e6");
+    return;
+  }
   if (t === "boat") {
     ellipse(x, y, 46, 17, "#344655");
     for (let i = 0; i < 5; i++)
@@ -2866,6 +3217,18 @@ function object(o) {
   const [t, x, y, id] = o;
   if (t === "boss") {
     creature(id, x, y + Math.sin(time * 2) * 2);
+    return;
+  }
+  if (t === "story") {
+    if (id === "fishing-bay") {
+      ellipse(x, y + 2, 43, 14, "#7dabbc");
+      rect(x - 35, y - 12, 70, 19, "#d4eeeb");
+      rect(x - 25, y - 20, 50, 10, "#eff8e8");
+    } else {
+      rect(x - 14, y - 15, 28, 19, "#687f8e");
+      rect(x - 11, y - 18, 22, 16, "#e6d6ac");
+      text("✧", x, y - 26, 17, "#f6dfa1", "center");
+    }
     return;
   }
   if (t === "journal") {
@@ -3058,12 +3421,15 @@ function solvePuzzle(r = currentRoom()) {
   if (!p || state.flags[p.id]) return;
   state.flags[p.id] = true;
   state.inventory.fish++;
-  state.inventory.boonona++;
+  if (state.flags.boononasNamed) state.inventory.boonona++;
+  else state.inventory.fish++;
   tone(784, 0.3);
-  notify(p.name + " solved! A fish and a boonona were tucked inside.");
+  notify(p.name + " solved! Some food was tucked inside.");
   say(p.name, [
     p.success || "Warm light runs through the mechanism. The passage is open.",
-    "You found a silver fish and a boonona. Your progress is saved.",
+    state.flags.boononasNamed
+      ? "You found a silver fish and a boonona. Your progress is saved."
+      : "You found two silver fish. Your progress is saved.",
   ]);
   updateHud();
 }
@@ -3252,7 +3618,7 @@ function drawWorld() {
       "gate",
     ].includes(r.theme),
     cave = ["cave", "icecave"].includes(r.theme),
-    snow = state.map === 0 && !indoor && !cave;
+    snow = [0, 3].includes(state.map) && !indoor && !cave;
   rect(0, 0, W, H, indoor || cave ? "#142335" : p.sea);
   ctx.save();
   ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
@@ -3288,9 +3654,9 @@ function drawWorld() {
           ? ["#627982", "#677e86", "#5d747e", "#6a8189"]
           : cave
             ? ["#456178", "#49677c", "#4d6980", "#405d76"]
-            : state.map === 0
+            : [0, 3].includes(state.map)
               ? ["#d6e9e6", "#d1e4e2", "#dbece7", "#d7e8e3"]
-              : state.map === 1
+              : [1, 2].includes(state.map)
                 ? ["#d8c696", "#ddcc9e", "#d2c18f", "#e0cfa1"]
                 : ["#829da4", "#89a4aa", "#7e98a1", "#8ca7ac"];
   for (let y = Math.max(96, top); y < Math.min(bottom, r.height - 64); y += 24)
@@ -3458,6 +3824,37 @@ function drawWorld() {
     })),
     { y: state.y, draw: () => penguin(state.x, state.y, "#deded0", true) },
   ];
+  if (
+    state.flags.metSlippy &&
+    !state.flags.captured &&
+    ((state.map > 0 && state.map < 4) ||
+      (state.map === 0 &&
+        (!state.flags.firstRescue ||
+          (state.flags.parentsAway && !state.flags.lakePlay) ||
+          state.flags.wrestled))) &&
+    !r.npcs.some((n) => n[0] === "Slippy")
+  ) {
+    const offsets = {
+        up: [-20, 34],
+        down: [25, -28],
+        left: [34, 15],
+        right: [-34, 15],
+      },
+      [dx, dy] = offsets[state.facing];
+    actors.push({
+      y: state.y + dy,
+      draw: () => penguin(state.x + dx, state.y + dy, "#a5cddd"),
+    });
+  }
+  if (
+    state.flags.pippy &&
+    state.map === 2 &&
+    !r.npcs.some((n) => n[0] === "Pippy")
+  )
+    actors.push({
+      y: state.y + 28,
+      draw: () => penguin(state.x - 45, state.y + 28, "#bdcfca", false, true),
+    });
   actors.sort((a, b) => a.y - b.y).forEach((a) => a.draw());
   const shade = ctx.createRadialGradient(
     state.x,
@@ -3603,7 +4000,11 @@ function drawBattle() {
       "center",
     );
   }
-  creature(b.type, 480, king ? 232 : 218, king ? 2.1 : b.boss ? 1.9 : 1.9);
+  if (b.id === "fishAmbush") {
+    creature("reef", 420, 220, 1.35);
+    creature("reef", 480, 195, 1.6);
+    creature("reef", 540, 220, 1.35);
+  } else creature(b.type, 480, king ? 232 : 218, king ? 2.1 : 1.9);
   rect(365, 253, 230, 7, "#253e54");
   rect(365, 253, (230 * b.hp) / b.maxHp, 7, "#a3c3ba");
   text(b.hp + " / " + b.maxHp, 480, 279, 11, "#b8d1d5", "center");
