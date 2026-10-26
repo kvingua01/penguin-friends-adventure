@@ -235,31 +235,6 @@ let roomTransition = 0,
   impact = 0,
   lastFootprint = 0;
 const footprints = [];
-const camera = { x: 0, y: 0 };
-function projectPoint(room, x, y) {
-  return [64 + (x - 64) * room.scaleX, 82 + (y - 82) * room.scaleY];
-}
-function roomCenter(room = currentRoom()) {
-  return { x: room.width / 2, y: room.height / 2 };
-}
-function doorPoint(room, direction) {
-  const c = roomCenter(room);
-  return {
-    E: [room.width - 109, c.y],
-    W: [109, c.y],
-    N: [c.x, 123],
-    S: [c.x, room.height - 95],
-  }[direction];
-}
-function updateCamera(dt = 1, snap = false) {
-  const r = currentRoom(),
-    x = Math.max(0, Math.min(r.width - W, state.x - W / 2)),
-    y = Math.max(0, Math.min(r.height - H, state.y - H / 2));
-  const t = snap ? 1 : Math.min(1, dt * 10);
-  camera.x += (x - camera.x) * t;
-  camera.y += (y - camera.y) * t;
-}
-
 function currentRoom() {
   const r =
     WORLD.rooms[state?.room] || WORLD.rooms[WORLD.starts[state?.map || 0]];
@@ -269,31 +244,19 @@ function enterRoom(id, direction) {
   const r = WORLD.rooms[id];
   if (!r || r.region !== state.map) return;
   state.room = id;
-  const c = roomCenter(r),
-    spawns = {
-      E: [160, c.y],
-      W: [r.width - 160, c.y],
-      N: [c.x, r.height - 155],
-      S: [c.x, 175],
-    };
-  placePlayer(...(spawns[direction] || [c.x, c.y]));
+  const spawns = { E: [160, 295], W: [802, 295], N: [480, 430], S: [480, 175] };
+  const spot = spawns[direction] || [480, 350];
+  placePlayer(...spot);
   state.visited[id] = true;
   nearby = null;
   keys.clear();
   roomTransition = 1;
   roomTitleTime = 3;
   footprints.length = 0;
-  state.encounterGrace = Math.max(state.encounterGrace || 0, 2);
-  state.bossGrace = 1;
-  state.encounterDistance = Number.isFinite(state.encounterDistance)
-    ? state.encounterDistance
-    : 1000;
-  updateCamera(1, true);
   updateHud();
   save();
   tone(294, 0.07, "triangle", 0.025);
 }
-
 function placePlayer(x, y) {
   if (walkable(x, y)) {
     state.x = x;
@@ -316,9 +279,8 @@ function placePlayer(x, y) {
         state.y = y + dy * radius;
         return;
       }
-  const center = roomCenter();
-  state.x = center.x;
-  state.y = center.y;
+  state.x = 480;
+  state.y = 300;
 }
 function worldMap() {
   if (mode !== "world" || dialogue) return;
@@ -367,17 +329,12 @@ function worldMap() {
 
 function fresh() {
   return {
-    version: 3,
-    facing: "down",
-    encounterDistance: 1000,
-    encounterGrace: 10,
-    encounterSerial: 0,
-    puzzles: {},
+    version: 2,
     room: "h0",
     visited: { h0: true },
     map: 0,
-    x: projectPoint(WORLD.rooms.h0, 480, 350)[0],
-    y: projectPoint(WORLD.rooms.h0, 480, 350)[1],
+    x: 480,
+    y: 350,
     hp: 120,
     maxHp: 120,
     inventory: { fish: 3, boonona: 0, soup: 1 },
@@ -393,16 +350,16 @@ function readSave() {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (
       !s ||
-      ![1, 2, 3].includes(s.version) ||
+      ![1, 2].includes(s.version) ||
       !Number.isInteger(s.map) ||
       s.map < 0 ||
       s.map >= maps.length ||
       !Number.isFinite(s.x) ||
       !Number.isFinite(s.y) ||
       s.x < 60 ||
-      s.x > 2400 ||
+      s.x > 905 ||
       s.y < 75 ||
-      s.y > 1800 ||
+      s.y > 525 ||
       s.maxHp !== 120 ||
       !Number.isFinite(s.hp) ||
       s.hp <= 0 ||
@@ -436,26 +393,6 @@ function readSave() {
     }
     if (!s.visited || typeof s.visited !== "object" || Array.isArray(s.visited))
       s.visited = { [s.room]: true };
-    if (s.version < 3) {
-      [s.x, s.y] = projectPoint(WORLD.rooms[s.room], s.x, s.y);
-      s.version = 3;
-    }
-    if (
-      s.x > WORLD.rooms[s.room].width - 64 ||
-      s.y > WORLD.rooms[s.room].height - 64
-    )
-      return null;
-    if (!["up", "down", "left", "right"].includes(s.facing)) s.facing = "down";
-    if (!s.puzzles || typeof s.puzzles !== "object" || Array.isArray(s.puzzles))
-      s.puzzles = {};
-    s.encounterDistance = Number.isFinite(s.encounterDistance)
-      ? Math.max(400, s.encounterDistance)
-      : 1000;
-    s.encounterGrace = 8;
-    s.bossGrace = 3;
-    s.encounterSerial = Number.isInteger(s.encounterSerial)
-      ? s.encounterSerial
-      : 0;
     s.assist = !!s.assist;
     return s;
   } catch {
@@ -592,11 +529,10 @@ function title() {
   dialogue = null;
   $("dialogue").hidden = true;
   $("battleControls").hidden = true;
-  document.body.classList.remove("in-battle");
   updateHud();
   const saved = readSave();
   panel(
-    '<div class="eyebrow">48 SCROLLING ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Walking can trigger battles outside safe areas.</small>',
+    '<div class="eyebrow">48 CONNECTED ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Progress saves at doorways and lanterns.</small>',
   );
   const bs = [];
   if (saved)
@@ -605,8 +541,6 @@ function title() {
       () => {
         state = saved;
         mode = "world";
-        placePlayer(state.x, state.y);
-        updateCamera(1, true);
         closePanel();
         updateHud();
       },
@@ -633,7 +567,6 @@ function title() {
 function newGame() {
   state = fresh();
   mode = "world";
-  updateCamera(1, true);
   closePanel();
   updateHud();
   say(
@@ -647,7 +580,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular fights happen while you walk outside safe areas; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press Enter, E, Space, or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -786,9 +719,13 @@ function activeObjects() {
 }
 function targets() {
   const m = currentRoom();
-
+  const positions = {
+    E: [851, 295],
+    W: [109, 295],
+    N: [480, 123],
+    S: [480, 481],
+  };
   return [
-    ...puzzleTargets(m),
     ...m.npcs.map((n) => ({
       kind: "npc",
       name: n[0],
@@ -839,8 +776,8 @@ function targets() {
               "Open the royal halls",
             ][state.map]
           : WORLD.rooms[d.to].name,
-      x: doorPoint(m, d.direction)[0],
-      y: doorPoint(m, d.direction)[1],
+      x: positions[d.direction][0],
+      y: positions[d.direction][1],
       ...d,
     })),
   ];
@@ -860,13 +797,11 @@ function interact() {
   if (mode !== "world" || !nearby) return;
   const n = nearby;
   switch (n.kind) {
-    case "puzzle":
-      interactPuzzle(n);
-      break;
     case "npc":
       talk(n.id);
       break;
     case "enemy":
+      startBattle(n.enemy, n.id);
       break;
     case "boss":
       if (n.id === "baby" && fruitCount() < 3) {
@@ -875,6 +810,7 @@ function interact() {
         ]);
         return;
       }
+      startBattle(n.id, n.id);
       break;
     case "shrine":
       state.hp = state.maxHp;
@@ -1115,16 +1051,13 @@ function exitMap() {
 function changeMap(index) {
   state.map = index;
   state.room = WORLD.starts[index];
-  const r = currentRoom();
-  placePlayer(...projectPoint(r, 480, 350));
+  state.x = 480;
+  state.y = 350;
   state.visited[state.room] = true;
   nearby = null;
   keys.clear();
   roomTransition = 1;
   roomTitleTime = 3;
-  state.encounterGrace = 12;
-  state.encounterDistance = 900;
-  updateCamera(1, true);
   updateHud();
   save();
   tone(392, 0.25);
@@ -1182,7 +1115,6 @@ function startBattle(type, id) {
     done: null,
   };
   $("battleControls").hidden = false;
-  document.body.classList.add("in-battle");
   updateHud();
   battleUI();
   tone(220, 0.3, "triangle");
@@ -1198,12 +1130,6 @@ function fleeUnlocked() {
 }
 function battleUI() {
   if (!battle) return;
-  const playerTurn = battle.phase !== "dodge";
-  const wasCompact = document.body.classList.contains("in-battle");
-  document.body.classList.toggle("in-battle", playerTurn);
-  $("battleControls").hidden = !playerTurn;
-  if (!playerTurn && wasCompact)
-    $("stage").scrollIntoView({ block: "center", behavior: "instant" });
   $("battleMessage").textContent = battle.message;
   const a = $("battleActions");
   a.innerHTML = "";
@@ -1214,7 +1140,7 @@ function battleUI() {
         battle.phaseTime = 0;
         battle.marker = 0;
         battle.message =
-          "Press Enter, E, Space, or STRIKE when the marker reaches the center.";
+          "Press E / Space or STRIKE when the marker reaches the center.";
         battleUI();
       }),
     );
@@ -1233,7 +1159,7 @@ function battleUI() {
     a.append(flee);
     if (battle.parents) a.append(button("ACT", act));
   } else if (battle.phase === "strike")
-    a.append(button("STRIKE · ENTER / E / SPACE", finishStrike, true));
+    a.append(button("STRIKE · E / SPACE", finishStrike, true));
   else if (battle.phase === "dodge") {
     const b = button("MOVE THE HEART · DODGE", () => {});
     b.disabled = true;
@@ -1283,7 +1209,6 @@ function beginDodge() {
   b.spawnTime = 0;
   b.turn++;
   b.volley = 0;
-  b.extraRayUsed = false;
   b.bullets = [];
   b.hazards = [];
   b.phaseLevel =
@@ -1316,7 +1241,7 @@ function finishBattle(outcome) {
   keys.clear();
   if (outcome === "win") {
     state.flags[b.id] = true;
-    state.xp = Math.min(999, state.xp + b.xp);
+    state.xp += b.xp;
     state.inventory.fish++;
     if (b.boss) state.inventory.soup++;
     b.message = b.parents
@@ -1349,12 +1274,7 @@ function finishBattle(outcome) {
     mode = "world";
     battle = null;
     $("battleControls").hidden = true;
-    document.body.classList.remove("in-battle");
     if (walkable(state.x - 24, state.y)) state.x -= 24;
-    state.encounterGrace = 14;
-    state.bossGrace = 3;
-    state.encounterDistance = 1100 + Math.random() * 650;
-    updateCamera(1, true);
     closePanel();
     updateHud();
     save();
@@ -1393,231 +1313,92 @@ function bullet(x, y, vx, vy, r = 6, kind = "orb", extra = {}) {
   battle.bullets.push({ x, y, vx, vy, r, kind, age: 0, ...extra });
 }
 const arena = { x: 248, y: 307, w: 464, h: 226 };
-const ATTACKS = Object.fromEntries(
-  [
-    ["snowcrab.claws", "Pincer Trap", "Leave the marked claw lanes.", 1.05],
-    [
-      "snowcrab.snow",
-      "Frost Flakes",
-      "Find the opening between drifting snow shards.",
-      0.55,
-    ],
-    [
-      "snowcrab.burrow",
-      "Under the Ice",
-      "Watch the cracking circles before the claws burst.",
-      1.15,
-    ],
-    [
-      "coconut.seeds",
-      "Seed Scatter",
-      "Seeds arc downward. Watch their landing paths.",
-      0.68,
-    ],
-    [
-      "coconut.roll",
-      "Rolling Lunch",
-      "Coconuts ricochet along the lower lanes.",
-      0.9,
-    ],
-    [
-      "coconut.vines",
-      "Hungry Vines",
-      "Leave the sprouting green columns.",
-      1.1,
-    ],
-    ["reef.school", "School Rush", "Fish weave from alternating sides.", 0.72],
-    [
-      "reef.jaws",
-      "Closing Jaws",
-      "Follow the moving opening between the jaws.",
-      1.3,
-    ],
-    [
-      "reef.bubbles",
-      "Bubble Trouble",
-      "Rising bubbles split into sideways nibbles.",
-      0.8,
-    ],
-    [
-      "gull.feathers",
-      "Featherfall",
-      "Feathers drift diagonally through the box.",
-      0.48,
-    ],
-    [
-      "gull.dive",
-      "Shadow Dive",
-      "Leave the marked shadow before the gull dives.",
-      1.12,
-    ],
-    [
-      "gull.gust",
-      "Storm Wings",
-      "The wind pushes you. Steer against it.",
-      0.72,
-    ],
-    [
-      "guard.spears",
-      "Sentry Spears",
-      "Four walls, four spear tips. Watch your flanks.",
-      0.85,
-    ],
-    [
-      "guard.shield",
-      "Shield March",
-      "Move into the gap in the shield formation.",
-      1.05,
-    ],
-    [
-      "guard.watch",
-      "Searchlight",
-      "Stay out of the sentry’s marked sight line.",
-      1.05,
-    ],
-    [
-      "parents.snow",
-      "Snowball Practice",
-      "Dodge the soft, slow snowballs.",
-      0.8,
-    ],
-    [
-      "parents.lesson",
-      "Follow the Safe Lane",
-      "Find the wide opening Mama leaves for you.",
-      1.2,
-    ],
-    [
-      "parents.hugs",
-      "Overprotective Hugs",
-      "Slip between Papa’s widening snow rings.",
-      1.25,
-    ],
-    ["baby.breach", "Little Breach", "Move out of the splash lane.", 1.16],
-    [
-      "baby.splash",
-      "Playful Splashes",
-      "Water drops rise, then fall back down.",
-      0.75,
-    ],
-    ["baby.spout", "Baby Blowhole", "The water jets rise from below.", 0.9],
-    [
-      "baby.tail",
-      "Tail Tantrum",
-      "Thread the wobbly gaps in the tail waves.",
-      1.05,
-    ],
-    [
-      "gate.harpoon",
-      "Returning Harpoon",
-      "Harpoons turn around. Don’t follow them.",
-      0.85,
-    ],
-    [
-      "gate.march",
-      "Captain’s Formation",
-      "Find the open column between the spears.",
-      1.03,
-    ],
-    [
-      "gate.anchor",
-      "Depth Anchors",
-      "Anchors burst into six heavy fragments.",
-      1.2,
-    ],
-    [
-      "gate.cross",
-      "Crossed Orders",
-      "Diagonal spears cross in the center.",
-      0.9,
-    ],
-    [
-      "key1.orbit",
-      "Pearl Satellites",
-      "Pearls orbit a slowly falling center.",
-      0.72,
-    ],
-    [
-      "key1.prism",
-      "Prism Reflections",
-      "Watch the paired columns of light.",
-      1.1,
-    ],
-    [
-      "key1.chain",
-      "Pearl Necklace",
-      "Strings of pearls curl across the box.",
-      0.68,
-    ],
-    [
-      "key1.nova",
-      "Shattered Pearl",
-      "A turning pearl opens into star rays.",
-      1.15,
-    ],
-    [
-      "key2.sluice",
-      "Open the Floodgates",
-      "Find the gap in the falling columns.",
-      0.7,
-    ],
-    [
-      "key2.whirl",
-      "Royal Whirlpool",
-      "The current pulls while water circles you.",
-      0.64,
-    ],
-    [
-      "key2.undertow",
-      "Reverse Tide",
-      "Find the opening in the rising tide.",
-      1.05,
-    ],
-    [
-      "key2.surge",
-      "High Water",
-      "Keep moving out of the rising flood lanes.",
-      1.3,
-    ],
-    [
-      "king.crown",
-      "Crown of the Deep",
-      "Gold lanes mark the King’s cross of light.",
-      1.12,
-    ],
-    [
-      "king.trident",
-      "Three-Pronged Promise",
-      "Tridents arrive in aimed triples.",
-      0.8,
-    ],
-    [
-      "king.decree",
-      "Restless Edict",
-      "Keep moving: golden royal seals only hurt if you stand still.",
-      0.72,
-    ],
-    [
-      "king.eclipse",
-      "The Lonely Crown",
-      "Give the dark stars room before they burst.",
-      1.05,
-    ],
-    [
-      "king.storm",
-      "The King’s Last Storm",
-      "Ride through the shifting gap and watch for crownlight.",
-      1.2,
-    ],
-  ].map(([id, name, hint, interval]) => [id, { name, hint, interval }]),
-);
-const movePools = Object.fromEntries(
-  Object.keys(enemies).map((type) => [
-    type,
-    Object.keys(ATTACKS).filter((id) => id.startsWith(type + ".")),
-  ]),
-);
-
+const ATTACKS = {
+  rain: {
+    name: "Falling Fangs",
+    hint: "Follow the gap between the icicles.",
+    interval: 0.48,
+  },
+  fan: {
+    name: "Riptide Fans",
+    hint: "Thread between the spreading volleys.",
+    interval: 0.7,
+  },
+  aim: {
+    name: "Hunter’s Volley",
+    hint: "Keep moving; shots aim where you were.",
+    interval: 0.66,
+  },
+  wave: {
+    name: "Tidal Walls",
+    hint: "Find the moving opening in each wall.",
+    interval: 1.05,
+  },
+  spiral: {
+    name: "Pearl Spiral",
+    hint: "Circle around the curling stream.",
+    interval: 0.42,
+  },
+  ring: {
+    name: "Shockwave",
+    hint: "Stay away from the glowing source, then pass between rings.",
+    interval: 1.25,
+  },
+  cross: {
+    name: "Crosscurrent",
+    hint: "Watch both sides, not just the top.",
+    interval: 0.88,
+  },
+  laser: {
+    name: "Crownlight",
+    hint: "Gold lanes warn you before the beams fire.",
+    interval: 1.05,
+  },
+  bounce: {
+    name: "Ricochet Reef",
+    hint: "These shells bounce off the battle walls.",
+    interval: 0.69,
+  },
+  charge: {
+    name: "Orca Rush",
+    hint: "Leave the marked lane before the rush.",
+    interval: 1.18,
+  },
+  orbit: {
+    name: "Undertow Waltz",
+    hint: "Sweeping pearls curve as they fall.",
+    interval: 0.55,
+  },
+  mines: {
+    name: "Deepsea Stars",
+    hint: "Glowing stars burst outward. Give them room.",
+    interval: 1.35,
+  },
+};
+const movePools = {
+  snowcrab: ["rain", "bounce", "cross"],
+  coconut: ["fan", "orbit", "mines"],
+  reef: ["wave", "ring", "bounce"],
+  gull: ["aim", "cross", "charge"],
+  guard: ["fan", "laser", "cross", "aim"],
+  parents: ["rain", "fan", "wave"],
+  baby: ["wave", "charge", "ring", "bounce", "mines"],
+  gate: ["aim", "laser", "cross", "charge", "fan"],
+  key1: ["spiral", "orbit", "ring", "laser", "mines"],
+  key2: ["rain", "wave", "bounce", "cross", "charge"],
+  king: [
+    "laser",
+    "spiral",
+    "charge",
+    "mines",
+    "wave",
+    "ring",
+    "cross",
+    "orbit",
+    "aim",
+    "bounce",
+  ],
+};
 function chooseAttack(b) {
   const pool = movePools[b.type];
   let choices = pool.filter((p) => !b.recent.includes(p));
@@ -1631,7 +1412,7 @@ function chooseAttack(b) {
     pool.find((p) => p !== selected && p !== b.recent[0]) || pool[0];
 }
 function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
-  const item = {
+  battle.hazards.push({
     kind,
     x,
     y,
@@ -1641,454 +1422,145 @@ function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
     warning: warning * (state.assist ? 1.35 : 1),
     duration,
     fired: false,
-  };
-  battle.hazards.push(item);
-  return item;
-}
-function claimExtraRay() {
-  if (battle.extraRayUsed || battle.phaseTime < 3.2) return false;
-  battle.extraRayUsed = true;
-  return true;
+  });
 }
 function spawnPattern(pattern = battle.attack) {
   const b = battle,
     a = arena,
     t = b.phaseTime,
-    n = b.volley,
-    rate = state.assist ? 0.7 : 1,
+    level = b.phaseLevel,
     speed =
-      (b.parents ? 76 : b.boss ? 145 : 113) *
-      (1 + (b.phaseLevel - 1) * 0.11) *
-      rate,
-    L = a.x,
-    T = a.y,
-    R = L + a.w,
-    B = T + a.h;
-  const aim = (x, y, count = 1, spread = 0.18, kind = "shard", extra = {}) => {
-    const angle = Math.atan2(b.heart.y - y, b.heart.x - x);
-    for (let i = 0; i < count; i++) {
-      const v = angle + (i - (count - 1) / 2) * spread;
-      bullet(x, y, Math.cos(v) * speed, Math.sin(v) * speed, 5, kind, extra);
-    }
-  };
-  const burst = (x, y, count = 8, s = 0.9, kind = "star") => {
-    const h = hazard("burst", x, y, 14, 0, 0.9, 0.08);
-    h.count = count;
-    h.speed = speed * s;
-    h.projectileKind = kind;
-  };
-  switch (pattern) {
-    case "snowcrab.claws": {
-      const width = 22 + ((n * 61) % (a.w / 2 - 37));
-      hazard("beam", L + width, T, 29, a.h, 0.9, 0.3);
-      hazard("beam", R - width, T, 29, a.h, 0.9, 0.3);
-      break;
-    }
-    case "snowcrab.snow": {
-      const gap = n % 6;
-      for (let i = 0; i < 7; i++)
-        if (i !== gap)
-          bullet(
-            L + 25 + i * 66,
-            T - 10,
-            (i % 2 ? 1 : -1) * 15,
-            speed,
-            5,
-            "shard",
-            { curve: 15, phase: i },
-          );
-      break;
-    }
-    case "snowcrab.burrow":
-      burst(L + 40 + ((n * 97) % (a.w - 80)), B - 20, 5, 0.8, "claw");
-      break;
-    case "coconut.seeds": {
-      for (let i = 0; i < 4; i++)
-        bullet(
-          L + 22 + ((n * 83 + i * 107) % (a.w - 44)),
-          T + 70,
-          (i - 1.5) * 52 * rate,
-          -65 + i * 10,
-          6,
-          "seed",
-          { gravity: 110 * rate },
-        );
-      break;
-    }
-    case "coconut.roll":
+      (b.boss ? 145 : 113) *
+      (1 + (level - 1) * 0.11) *
+      (state.assist ? 0.7 : 1),
+    left = a.x,
+    top = a.y;
+  if (pattern === "rain") {
+    const safe = Math.floor((t * 0.8 + b.turn * 0.9) % 6);
+    for (let i = 0; i < 7; i++) {
+      if (Math.abs(i - safe) <= 0.7) continue;
       bullet(
-        n % 2 ? L + 12 : R - 12,
-        T + 30 + ((n * 53) % (a.h - 60)),
-        (n % 2 ? 1 : -1) * speed,
-        n % 2 ? -35 : 35,
-        10,
-        "shell",
-        { bounces: 0, gravity: 45 },
+        left + 22 + i * 68,
+        top - 12,
+        Math.sin(t + i) * 13,
+        speed,
+        5,
+        "shard",
       );
-      break;
-    case "coconut.vines":
-      hazard("beam", L + 35 + ((n * 103) % (a.w - 70)), T, 27, a.h, 1.1, 0.4);
-      break;
-    case "reef.school": {
-      for (let i = 0; i < 4; i++)
-        bullet(
-          n % 2 ? L - 10 : R + 10,
-          T + 30 + i * 49,
-          (n % 2 ? 1 : -1) * speed,
-          0,
-          7,
-          "fish",
-          { swayY: 42, phase: i * 0.6 },
-        );
-      break;
     }
-    case "reef.jaws": {
-      const opening = T + 50 + ((n * 37) % (a.h - 100));
-      const upper = Math.max(8, opening - T - 36),
-        lower = Math.min(B - 8, opening + 36);
-      hazard("rush", L, T, a.w, upper, 0.85, 0.4);
-      hazard("rush", L, lower, a.w, B - lower, 0.85, 0.4);
-      aim(n % 2 ? L - 10 : R + 10, opening, 2, 0.18, "tooth");
-      break;
-    }
-    case "reef.bubbles": {
-      for (let i = 0; i < 3; i++)
-        bullet(
-          L + 50 + ((n * 67 + i * 135) % (a.w - 90)),
-          B + 9,
-          0,
-          -speed * 0.75,
-          9,
-          "bubble",
-          { splitAt: 1.05 },
-        );
-      break;
-    }
-    case "gull.feathers": {
-      for (let i = 0; i < 4; i++)
-        bullet(
-          L + 20 + ((n * 83 + i * 97) % (a.w - 40)),
-          T - 10,
-          (n % 2 ? 1 : -1) * 50,
-          speed * 0.85,
-          6,
-          "feather",
-          { curve: 22, phase: i },
-        );
-      break;
-    }
-    case "gull.dive":
-      hazard(
-        "rush",
-        L,
-        Math.max(T + 7, Math.min(B - 34, b.heart.y - 12)),
-        a.w,
-        24,
-        0.95,
-        0.27,
+  } else if (pattern === "fan") {
+    const x = 480 + Math.sin(t * 1.7) * 140;
+    for (let i = -3; i <= 3; i++)
+      bullet(
+        x,
+        top - 9,
+        Math.sin(i * 0.25 + t * 0.08) * speed,
+        Math.cos(i * 0.25 + t * 0.08) * speed,
+        5,
+        "orb",
       );
-      break;
-    case "gull.gust": {
-      for (let i = 0; i < 3; i++)
-        bullet(
-          n % 2 ? L - 10 : R + 10,
-          T + 18 + ((n * 47 + i * 71) % (a.h - 36)),
-          (n % 2 ? 1 : -1) * speed,
-          12,
-          5,
-          "feather",
-        );
-      break;
-    }
-    case "guard.spears": {
-      const from = [
-        [L - 9, T + 30],
-        [R + 9, B - 30],
-        [L + 70, T - 9],
-        [R - 70, B + 9],
-      ][n % 4];
-      aim(...from, 2, 0.15, "spear");
-      break;
-    }
-    case "guard.shield": {
-      const gap = T + 40 + ((n * 47) % (a.h - 80));
-      for (let y = T + 15; y < B; y += 26)
-        if (Math.abs(y - gap) > 32)
-          bullet(
-            n % 2 ? L - 9 : R + 9,
-            y,
-            (n % 2 ? 1 : -1) * speed,
-            0,
-            9,
-            "shield",
-          );
-      break;
-    }
-    case "guard.watch":
-      hazard("beam", L + 30 + ((n * 109) % (a.w - 60)), T, 19, a.h, 0.85, 0.38);
-      break;
-    case "parents.snow": {
-      for (let i = 0; i < 3; i++)
-        bullet(
-          L + 50 + ((n * 57 + i * 130) % (a.w - 90)),
-          T - 8,
-          Math.sin(n + i) * 20,
-          speed * 0.8,
-          9,
-          "snow",
-          { gravity: 18 },
-        );
-      break;
-    }
-    case "parents.lesson": {
-      const gap = T + 60 + Math.sin(t) * 45;
-      for (let y = T + 15; y < B; y += 31)
-        if (Math.abs(y - gap) > 52) bullet(R + 9, y, -speed, 0, 6, "snow");
-      break;
-    }
-    case "parents.hugs":
-      burst(480, T - 10, 9, 0.65, "snow");
-      break;
-    case "baby.breach": {
-      hazard(
-        "rush",
-        L,
-        Math.max(T + 10, Math.min(B - 40, b.heart.y - 14)),
-        a.w,
-        28,
-        1,
-        0.27,
+  } else if (pattern === "aim") {
+    const side = b.volley % 2 === 0,
+      x = side ? left - 9 : left + a.w + 9,
+      y = top + 20 + ((b.volley * 53) % (a.h - 40)),
+      angle = Math.atan2(b.heart.y - y, b.heart.x - x);
+    for (let i = -1; i <= 1; i++)
+      bullet(
+        x,
+        y,
+        Math.cos(angle + i * 0.2) * speed,
+        Math.sin(angle + i * 0.2) * speed,
+        5,
+        "shard",
       );
-      if (b.phaseLevel > 1)
-        hazard("rush", L, T + (n % 2 ? 35 : 145), a.w, 18, 1.35, 0.2);
-      break;
-    }
-    case "baby.splash": {
-      for (let i = 0; i < 5; i++)
-        bullet(
-          L + 55 + ((n * 113) % (a.w - 110)),
-          T + 55,
-          (i - 2) * 40 * rate,
-          -65,
-          7,
-          "water",
-          { gravity: 105 * rate },
-        );
-      break;
-    }
-    case "baby.spout": {
-      for (let i = -2; i <= 2; i++)
-        bullet(
-          L + 25 + ((n * 79) % (a.w - 50)),
-          B + 8,
-          i * 25,
-          -speed,
-          5,
-          "water",
-          { curve: 15, phase: i },
-        );
-      break;
-    }
-    case "baby.tail": {
-      const gap = T + 50 + ((Math.sin(n * 1.3) + 1) * (a.h - 100)) / 2;
-      for (let y = T + 14; y < B; y += 25)
-        if (Math.abs(y - gap) > 35)
-          bullet(
-            n % 2 ? L - 9 : R + 9,
-            y,
-            (n % 2 ? 1 : -1) * speed,
-            0,
-            6,
-            "water",
-            { swayY: 18 },
-          );
-      break;
-    }
-    case "gate.harpoon":
-      aim(
-        n % 2 ? L - 10 : R + 10,
-        T + 30 + ((n * 53) % (a.h - 60)),
-        2,
-        0.14,
-        "spear",
-        { returnAt: 2.5 },
-      );
-      break;
-    case "gate.march": {
-      const gap = L + 60 + ((n * 79) % (a.w - 120));
-      for (let x = L + 20; x < R; x += 32)
-        if (Math.abs(x - gap) > 39) bullet(x, T - 9, 0, speed, 6, "spear");
-      break;
-    }
-    case "gate.anchor":
-      burst(
-        L + 50 + ((n * 107) % (a.w - 100)),
-        T + 55 + ((n * 61) % (a.h - 100)),
+  } else if (pattern === "wave") {
+    const fromLeft = b.volley % 2 === 0,
+      gap = top + 40 + ((Math.sin(t * 1.5) + 1) / 2) * (a.h - 80);
+    for (let y = top + 10; y < top + a.h; y += 23) {
+      if (Math.abs(y - gap) < 34) continue;
+      bullet(
+        fromLeft ? left - 8 : left + a.w + 8,
+        y,
+        (fromLeft ? 1 : -1) * speed * 0.9,
+        0,
         6,
-        0.85,
-        "anchor",
+        "wave",
       );
-      break;
-    case "gate.cross": {
-      for (const [x, y, sx, sy] of [
-        [L, T, 1, 1],
-        [R, T, -1, 1],
-        [L, B, 1, -1],
-        [R, B, -1, -1],
-      ])
-        bullet(x, y, sx * speed * 0.9, sy * speed * 0.435, 6, "spear");
-      break;
     }
-    case "key1.orbit": {
-      const cx = L + 80 + ((n * 89) % (a.w - 160));
-      for (let i = 0; i < 5; i++)
-        bullet(cx, T + 15, 0, 0, 6, "pearl", {
-          orbit: {
-            x: cx,
-            y: T + 15,
-            angle: (i * Math.PI * 2) / 5,
-            r: 22,
-            speed: 1.8 * rate,
-            fall: 82 * rate,
-          },
-        });
-      break;
+  } else if (pattern === "spiral" || pattern === "orbit") {
+    for (let i = 0; i < (pattern === "spiral" ? 5 : 3); i++) {
+      const angle = t * 2.2 + i * Math.PI * 0.39;
+      bullet(
+        480 + Math.sin(t) * 110,
+        top - 10,
+        Math.cos(angle) * speed * 0.6,
+        Math.abs(Math.sin(angle)) * speed * 0.7 + 55,
+        5,
+        pattern === "orbit" ? "pearl" : "orb",
+        { curve: pattern === "orbit" ? 65 : 0, phase: i },
+      );
     }
-    case "key1.prism": {
-      const offset = 35 + ((n * 67) % (a.w / 2 - 60));
-      hazard("beam", L + offset, T, 18, a.h, 0.95, 0.35);
-      hazard("beam", R - offset, T, 18, a.h, 1.15, 0.25);
-      break;
-    }
-    case "key1.chain": {
-      for (let i = 0; i < 5; i++)
-        bullet(
-          n % 2 ? L - 10 : R + 10,
-          T + 35 + i * 37,
-          (n % 2 ? 1 : -1) * speed * 0.8,
-          0,
-          6,
-          "pearl",
-          { swayY: 55, phase: i * 0.55 },
-        );
-      break;
-    }
-    case "key1.nova": {
-      for (let i = 0; i < 7; i++) {
-        const angle = (i * Math.PI) / 7 + t * 0.35;
-        bullet(
-          480,
-          T - 8,
-          Math.cos(angle) * speed * 0.8,
-          Math.abs(Math.sin(angle)) * speed,
-          5,
-          "pearl",
-        );
+  } else if (pattern === "ring" || pattern === "mines") {
+    const x = left + 65 + Math.random() * (a.w - 130),
+      y = pattern === "ring" ? top + 45 : top + 35 + Math.random() * (a.h - 70);
+    hazard(
+      "burst",
+      x,
+      y,
+      pattern === "ring" ? 10 : 15,
+      0,
+      pattern === "ring" ? 0.7 : 1.1,
+      0.08,
+    );
+  } else if (pattern === "cross") {
+    const gap = top + 40 + ((b.volley * 47) % (a.h - 80));
+    for (let i = 0; i < 4; i++) {
+      const y = top + 22 + i * 58;
+      if (Math.abs(y - gap) > 30) {
+        bullet(left - 9, y, speed, 22, 5, "shard");
+        bullet(left + a.w + 9, top + a.h - (y - top), -speed, -22, 5, "shard");
       }
-      break;
     }
-    case "key2.sluice": {
-      const gap = L + 60 + ((n * 97) % (a.w - 120));
-      for (let x = L + 18; x < R; x += 29)
-        if (Math.abs(x - gap) > 37)
-          bullet(x, T - 8, Math.sin(n) * 15, speed, 5, "water");
-      break;
-    }
-    case "key2.whirl": {
-      for (let i = 0; i < 4; i++)
-        bullet(
-          480,
-          T - 9,
-          Math.cos(t * 2 + i) * speed * 0.65,
-          75 * rate,
-          6,
-          "water",
-          { curve: 40, phase: i },
-        );
-      break;
-    }
-    case "key2.undertow": {
-      const gap = L + 70 + ((Math.sin(t) + 1) * (a.w - 140)) / 2;
-      for (let x = L + 15; x < R; x += 27)
-        if (Math.abs(x - gap) > 37) bullet(x, B + 9, 0, -speed, 6, "wave");
-      break;
-    }
-    case "key2.surge": {
-      hazard("rush", L, T + ((n * 59) % (a.h - 46)), a.w, 46, 0.95, 0.4);
-      for (let i = 0; i < 3; i++)
-        bullet(L + 60 + i * 160, T - 8, (i - 1) * 15, speed * 0.8, 6, "water");
-      break;
-    }
-    case "king.crown": {
-      const x = L + 40 + ((n * 101) % (a.w - 80)),
-        y = T + 25 + ((n * 61) % (a.h - 50));
-      hazard("beam", x, T, 21, a.h, 0.95, 0.3);
-      hazard("rush", L, y, a.w, 20, 1.05, 0.32);
-      break;
-    }
-    case "king.trident": {
-      aim(
-        n % 2 ? L - 12 : R + 12,
-        T + 40 + ((n * 59) % (a.h - 80)),
-        3,
-        0.19,
-        "royalSpear",
+  } else if (pattern === "laser") {
+    const x = left + 25 + ((b.volley * 97) % (a.w - 50));
+    hazard("beam", x, top, 22, a.h, 0.85, 0.35);
+    if (level >= 2)
+      hazard(
+        "beam",
+        left + 25 + ((b.volley * 97 + 198) % (a.w - 50)),
+        top,
+        18,
+        a.h,
+        1.05,
+        0.25,
       );
-      if (b.phaseLevel === 3) aim(480, T - 12, 1, 0.1, "royalSpear");
-      break;
-    }
-    case "king.decree": {
-      for (let i = 0; i < 4; i++)
-        bullet(
-          L + 40 + ((n * 77 + i * 111) % (a.w - 80)),
-          T - 10,
-          Math.sin(i) * 20,
-          speed * 0.8,
-          8,
-          "seal",
-          { rule: "still" },
-        );
-      break;
-    }
-    case "king.eclipse":
-      burst(
-        L + 60 + ((n * 113) % (a.w - 120)),
-        T + 45 + ((n * 53) % (a.h - 90)),
-        11,
-        0.9,
-        "darkStar",
+  } else if (pattern === "charge") {
+    const y = Math.max(top + 14, Math.min(top + a.h - 40, b.heart.y - 13));
+    hazard("rush", left, y, a.w, 25, 0.95, 0.3);
+    if (level >= 3 && b.volley % 2 === 0)
+      hazard(
+        "beam",
+        left + 60 + ((b.volley * 71) % (a.w - 120)),
+        top,
+        18,
+        a.h,
+        1.25,
+        0.25,
       );
-      break;
-    case "king.storm": {
-      const gap = T + 48 + ((Math.sin(n * 1.7) + 1) * (a.h - 96)) / 2;
-      for (let y = T + 13; y < B; y += 23)
-        if (Math.abs(y - gap) > 32)
-          bullet(
-            n % 2 ? L - 10 : R + 10,
-            y,
-            (n % 2 ? 1 : -1) * speed,
-            0,
-            6,
-            "royalWater",
-          );
-      if (n % 4 === 0 && claimExtraRay())
-        hazard(
-          "beam",
-          L + 40 + ((n * 131) % (a.w - 80)),
-          T,
-          16,
-          a.h,
-          1.15,
-          0.2,
-        );
-      break;
-    }
-    default:
-      throw Error("Unknown attack " + pattern);
+  } else if (pattern === "bounce") {
+    const x = left + 35 + ((b.volley * 97) % (a.w - 70));
+    bullet(
+      x,
+      top + 9,
+      (b.volley % 2 ? 1 : -1) * speed * 0.65,
+      speed * 0.8,
+      6,
+      "shell",
+      { bounces: 0 },
+    );
   }
   b.volley++;
 }
-
 function hitHeart() {
   const b = battle;
   if (b.invulnerable > 0) return;
@@ -2119,20 +1591,7 @@ function updateBattle(dt) {
   b.spawnTime += dt;
   b.invulnerable = Math.max(0, b.invulnerable - dt);
   let [dx, dy] = direction();
-  const previousHeart = { x: b.heart.x, y: b.heart.y };
   const speed = state.assist ? 215 : 193;
-  const activeAttack =
-    b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
-      ? b.secondary
-      : b.attack;
-  if (activeAttack === "gull.gust")
-    b.heart.x +=
-      Math.sin(b.phaseTime * 1.5) * 50 * dt * (state.assist ? 0.6 : 1);
-  if (activeAttack === "key2.whirl") {
-    b.heart.x += Math.sin(b.phaseTime * 2) * 30 * dt;
-    b.heart.y += Math.cos(b.phaseTime * 2) * 18 * dt;
-  }
-
   b.heart.x = Math.max(
     arena.x + 8,
     Math.min(arena.x + arena.w - 8, b.heart.x + dx * speed * dt),
@@ -2141,8 +1600,6 @@ function updateBattle(dt) {
     arena.y + 8,
     Math.min(arena.y + arena.h - 8, b.heart.y + dy * speed * dt),
   );
-  const heartMoved =
-    Math.hypot(b.heart.x - previousHeart.x, b.heart.y - previousHeart.y) > 0.01;
   const pattern =
       b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
         ? b.secondary
@@ -2158,15 +1615,16 @@ function updateBattle(dt) {
   ) {
     b.spawnTime = 0;
     spawnPattern(pattern);
+    if (b.phaseLevel === 3 && b.volley % 4 === 0 && pattern !== "laser")
+      spawnPattern("laser");
   }
-
   for (const h of b.hazards) {
     h.age += dt;
     if (h.age >= h.warning && !h.fired) {
       h.fired = true;
       if (h.kind === "burst") {
-        const count = h.count || (b.phaseLevel === 3 ? 12 : 10),
-          speed = h.speed || (state.assist ? 79 : 122);
+        const count = b.phaseLevel === 3 ? 12 : 10,
+          speed = state.assist ? 79 : 122;
         for (let i = 0; i < count; i++) {
           const angle = (i * Math.PI * 2) / count + 0.15 * b.turn;
           bullet(
@@ -2175,7 +1633,7 @@ function updateBattle(dt) {
             Math.cos(angle) * speed,
             Math.sin(angle) * speed,
             5,
-            h.projectileKind || "star",
+            "star",
           );
         }
       }
@@ -2195,34 +1653,10 @@ function updateBattle(dt) {
   b.hazards = b.hazards.filter((h) => h.age < h.warning + h.duration);
   for (const p of b.bullets) {
     p.age += dt;
-    if (p.gravity) p.vy += p.gravity * dt;
-    if (p.returnAt && !p.returned && p.age > p.returnAt) {
-      p.vx = -p.vx;
-      p.vy = -p.vy;
-      p.returned = true;
-    }
-    if (p.splitAt && !p.splitDone && p.age > p.splitAt) {
-      p.splitDone = true;
-      bullet(p.x, p.y, -95, 0, 5, "fish");
-      bullet(p.x, p.y, 95, 0, 5, "fish");
-      p.age = 20;
-    }
-    if (p.orbit) {
-      p.orbit.angle += p.orbit.speed * dt;
-      p.orbit.y += p.orbit.fall * dt;
-      const radius = p.orbit.r + p.age * 27;
-      p.x = p.orbit.x + Math.cos(p.orbit.angle) * radius;
-      p.y = p.orbit.y + Math.sin(p.orbit.angle) * radius;
-    } else
-      p.x +=
-        (p.vx +
-          (p.curve ? Math.sin(p.age * 4 + (p.phase || 0)) * p.curve : 0)) *
-        dt;
-    if (!p.orbit)
-      p.y +=
-        (p.vy +
-          (p.swayY ? Math.cos(p.age * 3 + (p.phase || 0)) * p.swayY : 0)) *
-        dt;
+    p.x +=
+      (p.vx + (p.curve ? Math.sin(p.age * 4 + (p.phase || 0)) * p.curve : 0)) *
+      dt;
+    p.y += p.vy * dt;
     if (p.kind === "shell" && p.bounces < 3) {
       if (p.x < arena.x + p.r || p.x > arena.x + arena.w - p.r) {
         p.vx = -p.vx;
@@ -2244,8 +1678,7 @@ function updateBattle(dt) {
       p.x < arena.x + arena.w &&
       p.y > arena.y &&
       p.y < arena.y + arena.h &&
-      Math.hypot(p.x - b.heart.x, p.y - b.heart.y) < p.r + 4 &&
-      (p.rule !== "still" || !heartMoved)
+      Math.hypot(p.x - b.heart.x, p.y - b.heart.y) < p.r + 4
     ) {
       hitHeart();
       if (b.phase === "result") return;
@@ -2267,7 +1700,7 @@ function updateBattle(dt) {
       b.parents && b.acts >= 2
         ? "Your parents believe in you. FLEE is unlocked."
         : b.phaseLevel === 3
-          ? "The boss is tiring. Stay focused on the next pattern."
+          ? "The boss is desperate. The next attack will combine patterns."
           : b.phaseLevel === 2
             ? "A new phase begins. Watch for the attack to change halfway through."
             : "You catch your breath. Choose your next move.";
@@ -2286,8 +1719,8 @@ function direction() {
   return [dx / n, dy / n];
 }
 function walkable(x, y) {
+  if (x < 77 || x > 888 || y < 91 || y > 510) return false;
   const m = currentRoom();
-  if (x < 77 || x > m.width - 72 || y < 91 || y > m.height - 66) return false;
   if (
     terrainWalls(m).some(
       (r) =>
@@ -2298,7 +1731,6 @@ function walkable(x, y) {
     )
   )
     return false;
-  if (puzzleBlocked(m, x, y)) return false;
   for (const p of m.props) {
     const r =
       p[0] === "igloo"
@@ -2320,25 +1752,12 @@ function walkable(x, y) {
 }
 function updateWorld(dt) {
   const [dx, dy] = direction(),
-    speed = 195;
+    speed = 150;
   const px = state.x,
     py = state.y;
-  if (dx || dy)
-    state.facing =
-      Math.abs(dy) >= Math.abs(dx)
-        ? dy < 0
-          ? "up"
-          : "down"
-        : dx < 0
-          ? "left"
-          : "right";
-  updatePuzzle(dt, dx, dy);
-  if (dialogue) return;
   if (walkable(state.x + dx * speed * dt, state.y)) state.x += dx * speed * dt;
   if (walkable(state.x, state.y + dy * speed * dt)) state.y += dy * speed * dt;
-  const walked = Math.hypot(state.x - px, state.y - py);
-  state.steps = (state.steps || 0) + walked;
-  updateCamera(dt);
+  state.steps = (state.steps || 0) + Math.hypot(state.x - px, state.y - py);
   if ((dx || dy) && time - lastFootprint > 0.17) {
     footprints.push({
       x: state.x + (Math.sin(time * 16) > 0 ? 5 : -5),
@@ -2364,58 +1783,11 @@ function updateWorld(dt) {
     toastTime > 0
       ? toast
       : nearby
-        ? (nearby.kind === "boss" ? "Approach · " : "E / Space · ") +
-          nearby.name
+        ? "E / Space · " + nearby.name
         : "Explore · M opens your room map · Rest lanterns heal & save";
   if ($("hint").textContent !== text) $("hint").textContent = text;
-  updateEncounters(dt, walked);
 }
 // All illustrations below are drawn specifically for this game, without external assets.
-function updateEncounters(dt, walked) {
-  const r = currentRoom();
-  state.encounterGrace = Math.max(0, (state.encounterGrace || 0) - dt);
-  state.bossGrace = Math.max(0, (state.bossGrace || 0) - dt);
-  const boss = targets().find(
-    (n) => n.kind === "boss" && Math.hypot(n.x - state.x, n.y - state.y) < 68,
-  );
-  if (boss && state.bossGrace <= 0) {
-    if (boss.id === "baby" && fruitCount() < 3) {
-      if (!state.flags["baby-warning"]) {
-        state.flags["baby-warning"] = true;
-        say("BABY ORCA", [
-          "Bring snacks from all three groves before you cross my beach!",
-        ]);
-      }
-      return;
-    }
-    startBattle(boss.id, boss.id);
-    return;
-  }
-  if (
-    !walked ||
-    r.safe ||
-    !r.encounters.length ||
-    dialogue ||
-    state.encounterGrace > 0
-  )
-    return;
-  if (
-    targets().some(
-      (n) =>
-        ["npc", "exit", "shrine", "boss", "puzzle", "switch"].includes(
-          n.kind,
-        ) && Math.hypot(n.x - state.x, n.y - state.y) < 100,
-    )
-  )
-    return;
-  state.encounterDistance -= walked;
-  if (state.encounterDistance > 0) return;
-  const type = r.encounters[Math.floor(Math.random() * r.encounters.length)];
-  state.encounterSerial++;
-  state.encounterDistance = 1000 + Math.random() * 750;
-  state.encounterGrace = 14;
-  startBattle(type, "encounter-" + state.encounterSerial);
-}
 function rect(x, y, w, h, c) {
   ctx.fillStyle = c;
   ctx.fillRect(Math.round(x), Math.round(y), w, h);
@@ -2433,7 +1805,7 @@ function text(s, x, y, size = 12, color = "#d8ede9", align = "left") {
   ctx.fillText(s, x, y);
   ctx.textAlign = "left";
 }
-function baseTerrainWalls(room) {
+function terrainWalls(room) {
   const layouts = [
     [
       [350, 145, 64, 70],
@@ -2473,18 +1845,6 @@ function baseTerrainWalls(room) {
     ];
   return layouts[room.layout] || [];
 }
-function terrainWalls(room) {
-  return baseTerrainWalls(room)
-    .map(([x, y, w, h]) => {
-      const [xx, yy] = projectPoint(room, x, y);
-      return [xx, yy, w * room.scaleX, h * room.scaleY];
-    })
-    .filter(
-      ([x, y, w, h]) =>
-        !room.puzzle ||
-        !insidePuzzle(room, x + w / 2, y + h / 2, Math.max(w, h) / 2 + 50),
-    );
-}
 function seeded(n) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
@@ -2521,25 +1881,6 @@ function penguin(x, y, color = "#d7d8ce", baby = false, hat = false) {
   rect(x - 12, y - 40, 24, 18, "#14283a");
   rect(x - 9, y - 43, 18, 6, "#14283a");
   rect(x - 7, y - 44, 5, 3, "#476174");
-  if (baby && state.facing === "up") {
-    rect(x - 10, y - 36, 20, 12, "#29465b");
-    rect(x - 7, y - 40, 14, 7, "#496477");
-    rect(x - 8, y - 29, 16, 3, "#5b7382");
-    rect(x - 9, y - 23, 18, 6, "#cf806e");
-    rect(x - 6, y - 18, 5, 12, "#edab86");
-    return;
-  }
-  if (baby && (state.facing === "left" || state.facing === "right")) {
-    const side = state.facing === "left" ? -1 : 1;
-    rect(x - 9, y - 36, 18, 12, "#426074");
-    rect(x + side * 4 - 4, y - 35, 8, 11, "#ececd9");
-    rect(x + side * 6 - 1, y - 34, 3, 5, "#14283a");
-    rect(x + side * 12 - 3, y - 29, 7, 3, "#ffcf7f");
-    rect(x - 11, y - 24, 22, 5, "#edab85");
-    rect(x - side * 10 - 3, y - 20, 5, 12, "#c97565");
-    rect(x - side * 3 - 2, y - 18, 6, 13, "#29485c");
-    return;
-  }
   rect(x - 10, y - 36, 20, 12, "#f2f0dc");
   rect(x - 13, y - 31, 4, 6, "#e7c77d");
   rect(x + 10, y - 31, 4, 6, "#e7c77d");
@@ -2942,312 +2283,8 @@ function object(o) {
     }
   }
 }
-function puzzleBoard(r = currentRoom()) {
-  return {
-    x: r.width / 2 - 224,
-    y: r.height / 2 - 160,
-    w: 448,
-    h: 320,
-    tile: 64,
-  };
-}
-function insidePuzzle(r, x, y, pad = 0) {
-  const b = puzzleBoard(r);
-  return (
-    x > b.x - pad && x < b.x + b.w + pad && y > b.y - pad && y < b.y + b.h + pad
-  );
-}
-function puzzleState(r = currentRoom()) {
-  const p = r.puzzle;
-  if (!p) return null;
-  let ps = state.puzzles[p.id];
-  if (
-    !ps ||
-    typeof ps !== "object" ||
-    !Array.isArray(ps.block) ||
-    ps.block.length !== 2 ||
-    !ps.block.every(
-      (n, i) => Number.isInteger(n) && n >= 0 && n < (i === 0 ? 7 : 5),
-    )
-  ) {
-    ps = {
-      block: [...(p.start || [2, 2])],
-      progress: 0,
-      lastCell: "",
-      cooldown: 0,
-    };
-    state.puzzles[p.id] = ps;
-  }
-  if (!Number.isInteger(ps.progress) || ps.progress < 0 || ps.progress > 20)
-    ps.progress = 0;
-  if (state.flags[p.id] && p.type === "push") ps.block = [...p.goal];
-  return ps;
-}
-function puzzleTargets(r = currentRoom()) {
-  if (!r.puzzle) return [];
-  const b = puzzleBoard(r),
-    p = r.puzzle;
-  const out = [
-    {
-      kind: "puzzle",
-      name: "Puzzle hint",
-      id: p.id,
-      action: "hint",
-      x: b.x - 65,
-      y: b.y + b.h - 25,
-    },
-    {
-      kind: "puzzle",
-      name: "Reset puzzle",
-      id: p.id,
-      action: "reset",
-      x: b.x + b.w + 65,
-      y: b.y + b.h - 25,
-    },
-  ];
-  if (p.type === "sequence")
-    p.labels.forEach((label, i) =>
-      out.push({
-        kind: "puzzle",
-        name: label,
-        id: p.id,
-        action: "rune",
-        rune: i,
-        x: b.x + 96 + i * 128,
-        y: b.y + 128,
-      }),
-    );
-  return out;
-}
-function interactPuzzle(n) {
-  const r = currentRoom(),
-    p = r.puzzle,
-    ps = puzzleState(r);
-  if (!p) return;
-  if (n.action === "hint") {
-    say(p.name, [
-      p.hint,
-      "The left pedestal explains the puzzle. The right pedestal resets it. No health is lost for a mistake.",
-    ]);
-    return;
-  }
-  if (state.flags[p.id]) {
-    say(p.name, ["The mechanism is already solved. The way stays open."]);
-    return;
-  }
-  if (n.action === "reset") {
-    ps.block = [...(p.start || [2, 2])];
-    ps.progress = 0;
-    ps.lastCell = "";
-    ps.cooldown = 0;
-    say(p.name, [
-      "The puzzle returns to its starting position. Try again when you’re ready.",
-    ]);
-    return;
-  }
-  if (n.action === "rune") {
-    if (n.rune === p.order[ps.progress]) {
-      ps.progress++;
-      tone(330 + ps.progress * 110, 0.15);
-      if (ps.progress === p.order.length) solvePuzzle(r);
-      else
-        notify("Rune " + ps.progress + " / " + p.order.length + " is glowing.");
-    } else {
-      ps.progress = 0;
-      tone(170, 0.15);
-      say(p.name, [
-        "The lights gently go dark. Try the sequence again.",
-        p.hint,
-      ]);
-    }
-  }
-}
-function solvePuzzle(r = currentRoom()) {
-  const p = r.puzzle;
-  if (!p || state.flags[p.id]) return;
-  state.flags[p.id] = true;
-  state.inventory.fish++;
-  state.inventory.boonona++;
-  tone(784, 0.3);
-  notify(p.name + " solved! A fish and a boonona were tucked inside.");
-  say(p.name, [
-    p.success || "Warm light runs through the mechanism. The passage is open.",
-    "You found a silver fish and a boonona. Your progress is saved.",
-  ]);
-  updateHud();
-}
-function puzzleBlocked(r, x, y) {
-  const p = r.puzzle;
-  if (!p) return false;
-  const b = puzzleBoard(r),
-    ps = puzzleState(r);
-  for (const [cx, cy] of p.walls || []) {
-    const xx = b.x + cx * 64,
-      yy = b.y + cy * 64;
-    if (x > xx - 8 && x < xx + 72 && y > yy - 5 && y < yy + 72) return true;
-  }
-  if (p.type === "push") {
-    const bx = b.x + (ps.block[0] + 0.5) * 64,
-      by = b.y + (ps.block[1] + 0.5) * 64;
-    if (Math.abs(x - bx) < 35 && Math.abs(y - by) < 35) return true;
-  }
-  return false;
-}
-function updatePuzzle(dt, dx, dy) {
-  const r = currentRoom(),
-    p = r.puzzle;
-  if (!p) return;
-  const b = puzzleBoard(r),
-    ps = puzzleState(r);
-  ps.cooldown = Math.max(0, (ps.cooldown || 0) - dt);
-  if (
-    p.type === "push" &&
-    !state.flags[p.id] &&
-    (dx || dy) &&
-    ps.cooldown === 0
-  ) {
-    const bx = b.x + (ps.block[0] + 0.5) * 64,
-      by = b.y + (ps.block[1] + 0.5) * 64,
-      vertical = Math.abs(dy) > Math.abs(dx),
-      sx = vertical ? 0 : Math.sign(dx),
-      sy = vertical ? Math.sign(dy) : 0;
-    const aligned = vertical
-        ? Math.abs(state.x - bx) < 19
-        : Math.abs(state.y - by) < 19,
-      dist = vertical ? Math.abs(state.y - by) : Math.abs(state.x - bx),
-      toward = (bx - state.x) * sx + (by - state.y) * sy > 0;
-    if (aligned && dist < 43 && toward) {
-      const nx = ps.block[0] + sx,
-        ny = ps.block[1] + sy;
-      if (
-        nx >= 0 &&
-        nx < 7 &&
-        ny >= 0 &&
-        ny < 5 &&
-        !(p.walls || []).some(([x, y]) => x === nx && y === ny)
-      ) {
-        ps.block = [nx, ny];
-        ps.cooldown = 0.22;
-        tone(160, 0.06, "triangle", 0.025);
-        if (nx === p.goal[0] && ny === p.goal[1]) solvePuzzle(r);
-      }
-    }
-  }
-  if (
-    p.type === "path" &&
-    !state.flags[p.id] &&
-    insidePuzzle(r, state.x, state.y)
-  ) {
-    const cx = Math.floor((state.x - b.x) / 64),
-      cy = Math.floor((state.y - b.y) / 64),
-      cell = cx + "," + cy;
-    if (cell === ps.lastCell) return;
-    ps.lastCell = cell;
-    const wanted = p.path[ps.progress],
-      previous = p.path[ps.progress - 1];
-    if (previous && previous[0] === cx && previous[1] === cy) return;
-    if (wanted && wanted[0] === cx && wanted[1] === cy) {
-      ps.progress++;
-      tone(330 + ps.progress * 35, 0.06);
-      if (ps.progress === p.path.length) solvePuzzle(r);
-    } else {
-      ps.progress = 0;
-      ps.lastCell = "";
-      state.x = b.x - 38;
-      state.y = b.y + (p.path[0][1] + 0.5) * 64;
-      state.encounterGrace = 5;
-      notify("The path resets gently. Read the left pedestal for a hint.");
-    }
-  }
-}
-function drawPuzzles(r) {
-  const p = r.puzzle;
-  if (!p) return;
-  const b = puzzleBoard(r),
-    ps = puzzleState(r),
-    solved = !!state.flags[p.id];
-  rect(b.x - 8, b.y - 8, b.w + 16, b.h + 16, "#263c53");
-  for (let row = 0; row < 5; row++)
-    for (let col = 0; col < 7; col++) {
-      const isWall = (p.walls || []).some(([x, y]) => x === col && y === row),
-        isPath =
-          p.type === "path" &&
-          p.path.some(
-            ([x, y], i) =>
-              x === col && y === row && (solved || i < ps.progress),
-          );
-      rect(
-        b.x + col * 64 + 2,
-        b.y + row * 64 + 2,
-        60,
-        60,
-        isWall ? "#45647a" : isPath ? "#8ab4a7" : "#718a92",
-      );
-      rect(b.x + col * 64 + 5, b.y + row * 64 + 5, 54, 2, "#bfccc044");
-    }
-  if (p.type === "push") {
-    const gx = b.x + (p.goal[0] + 0.5) * 64,
-      gy = b.y + (p.goal[1] + 0.5) * 64;
-    ellipse(gx, gy, 23, 14, solved ? "#c9e5b0" : "#e6c58b");
-    const x = b.x + ps.block[0] * 64,
-      y = b.y + ps.block[1] * 64;
-    rect(x + 7, y + 12, 50, 46, "#354c62");
-    rect(x + 7, y + 7, 50, 44, "#acb6a4");
-    rect(x + 12, y + 11, 39, 33, "#6e9396");
-    rect(x + 28, y + 16, 6, 22, "#d6dab5");
-    rect(x + 20, y + 24, 22, 6, "#d6dab5");
-  }
-  if (p.type === "sequence")
-    p.labels.forEach((label, i) => {
-      const x = b.x + 96 + i * 128,
-        y = b.y + 128,
-        on = solved || p.order.slice(0, ps.progress).includes(i);
-      rect(x - 22, y - 35, 44, 46, "#3c566d");
-      rect(x - 16, y - 30, 32, 32, on ? "#d3d7a2" : "#94a5ac");
-      text(p.symbols[i], x, y - 8, 20, on ? "#496769" : "#354f64", "center");
-      text(label, x, y + 34, 11, "#ebdfb9", "center");
-    });
-  if (p.type === "path") {
-    const [startX, startY] = p.path[0];
-    text("START →", b.x - 8, b.y + startY * 64 + 37, 11, "#f2d7a3", "right");
-    for (let i = 0; i < p.path.length; i++) {
-      const [x, y] = p.path[i];
-      if (i === 0 || i === p.path.length - 1 || solved) {
-        text(
-          i === p.path.length - 1 ? "★" : "·",
-          b.x + (x + 0.5) * 64,
-          b.y + (y + 0.5) * 64 + 6,
-          19,
-          "#ebd9a8",
-          "center",
-        );
-      }
-    }
-  }
-  for (const n of puzzleTargets(r).filter((n) => n.action !== "rune")) {
-    rect(n.x - 13, n.y - 28, 26, 32, "#4b6d7d");
-    rect(n.x - 10, n.y - 30, 20, 17, "#d1c59d");
-    text(
-      n.action === "hint" ? "?" : "↻",
-      n.x,
-      n.y - 15,
-      15,
-      "#345369",
-      "center",
-    );
-  }
-  text(
-    p.name.toUpperCase() + (solved ? " · SOLVED" : ""),
-    b.x + b.w / 2,
-    b.y - 24,
-    13,
-    "#eadab6",
-    "center",
-  );
-}
-
 function drawWorld() {
-  const r = currentRoom(),
+  const m = currentRoom(),
     p = palettes[state.map],
     indoor = [
       "cabin",
@@ -3259,39 +2296,26 @@ function drawWorld() {
       "gallery",
       "throne",
       "gate",
-    ].includes(r.theme),
-    cave = ["cave", "icecave"].includes(r.theme),
+    ].includes(m.theme),
+    cave = ["cave", "icecave"].includes(m.theme),
     snow = state.map === 0 && !indoor && !cave;
   rect(0, 0, W, H, indoor || cave ? "#142335" : p.sea);
-  ctx.save();
-  ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
-  const left = Math.max(0, Math.floor(camera.x / 24) * 24),
-    top = Math.max(0, Math.floor(camera.y / 24) * 24),
-    right = Math.min(r.width, camera.x + W + 24),
-    bottom = Math.min(r.height, camera.y + H + 24);
-  for (let y = top; y < bottom; y += 24)
-    for (let x = left; x < right; x += 48) {
-      const drift = Math.sin(time * 1.3 + y * 0.12) * 5;
-      rect(x + drift, y, 21, 2, "#9ed6de14");
-    }
-  rect(
-    56,
-    90,
-    r.width - 112,
-    r.height - 139,
-    indoor ? "#273951" : cave ? "#293e59" : p.edge,
-  );
-  rect(
-    64,
-    82,
-    r.width - 128,
-    r.height - 144,
-    indoor ? "#617982" : cave ? "#49647c" : p.land,
-  );
+  // Animated sea, shoreline ledges, and tiled floors.
+  if (!indoor && !cave) {
+    for (let y = 8; y < H; y += 18)
+      for (let x = 0; x < W; x += 40) {
+        const drift = Math.sin(time * 1.3 + y * 0.12) * 5;
+        rect(x + drift, y, 18 + seeded(x + y) * 15, 2, "#9ed6de14");
+        rect(x + 12 - drift, y + 8, 7, 1, "#c0e1d31a");
+      }
+  }
+  rect(55, 103, 850, 427, "#081b2c66");
+  rect(56, 90, 848, 427, indoor ? "#273951" : cave ? "#293e59" : p.edge);
+  rect(64, 82, 832, 424, indoor ? "#617982" : cave ? "#49647c" : p.land);
   const base =
-    r.theme === "cabin"
+    m.theme === "cabin"
       ? ["#a38667", "#a98c6e", "#9a7d63", "#b09472"]
-      : r.theme === "jungle"
+      : m.theme === "jungle"
         ? ["#7c9d73", "#84a77a", "#73966d", "#8eac7a"]
         : indoor
           ? ["#627982", "#677e86", "#5d747e", "#6a8189"]
@@ -3302,153 +2326,183 @@ function drawWorld() {
               : state.map === 1
                 ? ["#d8c696", "#ddcc9e", "#d2c18f", "#e0cfa1"]
                 : ["#829da4", "#89a4aa", "#7e98a1", "#8ca7ac"];
-  for (let y = Math.max(96, top); y < Math.min(bottom, r.height - 64); y += 24)
-    for (
-      let x = Math.max(72, left);
-      x < Math.min(right, r.width - 72);
-      x += 24
-    ) {
-      const n = seeded(
-        Math.floor(x / 24) * 7 + Math.floor(y / 24) * 37 + r.layout * 13,
-      );
-      rect(x, y, 24, 24, base[Math.floor(n * 4)]);
+  for (let yy = 96; yy < 504; yy += 24)
+    for (let xx = 72; xx < 888; xx += 24) {
+      const n = seeded(xx * 3 + yy + m.layout * 137);
+      rect(xx, yy, 24, 24, base[Math.floor(n * 4)]);
       if (indoor || cave) {
-        rect(x, y, 23, 1, "#bdc9be15");
-        rect(x + 23, y, 1, 24, "#203a4b33");
+        rect(xx, yy, 23, 1, "#bdc9be15");
+        rect(xx + 23, yy, 1, 24, "#203a4b33");
+        if (n > 0.7) rect(xx + 5, yy + 13, 9, 1, "#293f5022");
       } else {
-        rect(x + 4 + n * 10, y + 6, 3, 2, snow ? "#aec9d04d" : "#a18e6355");
-        if (n > 0.8) {
-          rect(x + 15, y + 15, 3, 3, snow ? "#f4f8e999" : "#73956488");
-          rect(x + 17, y + 11, 2, 6, snow ? "#dcece5" : "#73956488");
+        rect(xx + 4 + n * 10, yy + 6, 3, 2, snow ? "#aec9d04d" : "#a18e6355");
+        if (n > 0.76) {
+          rect(xx + 15, yy + 15, 3, 3, snow ? "#f4f8e999" : "#73956488");
+          rect(xx + 17, yy + 11, 2, 6, snow ? "#dcece5" : "#73956488");
         }
       }
     }
-  const center = roomCenter(r);
+  // Paths lead to actual connected doors, rather than repeating the same cross in every room.
   ctx.strokeStyle = indoor ? "#426074" : cave ? "#59788a" : p.path;
-  ctx.lineWidth = indoor ? 68 : 52;
+  ctx.lineWidth = indoor ? 60 : 44;
   ctx.lineCap = "square";
-  for (const d of r.doors) {
-    const pos = doorPoint(r, d.direction);
+  for (const d of m.doors) {
+    const pos = { E: [876, 295], W: [84, 295], N: [480, 108], S: [480, 490] }[
+      d.direction
+    ];
     ctx.beginPath();
-    ctx.moveTo(center.x, center.y);
-    ctx.lineTo(pos[0], pos[1]);
+    ctx.moveTo(480, 300);
+    if (d.direction === "E" || d.direction === "W") ctx.lineTo(pos[0], 300);
+    else ctx.lineTo(480, pos[1]);
     ctx.stroke();
   }
-  for (const wall of terrainWalls(r)) {
-    const [x, y, w, h] = wall,
-      water = ["river", "waterfall", "cistern", "lake"].includes(r.theme);
-    if (x > right || x + w < left || y > bottom || y + h < top) continue;
-    rect(x, y + 9, w, h, "#162f4555");
-    rect(
-      x,
-      y,
-      w,
-      h,
-      water
-        ? "#376f87"
-        : indoor
-          ? "#3e586d"
-          : cave
-            ? "#314e69"
-            : r.region === 0
-              ? "#8baeb0"
-              : "#64836d",
-    );
-    rect(x, y, w, 5, water ? "#99c7cb" : "#bad1c5");
-    for (let i = 0; i < w; i += 20)
-      rect(x + i, y + h - 8, 10, 3, water ? "#72a9ba" : "#7fa19e");
-    if (water)
-      for (let i = 12; i < h; i += 24)
-        rect(x + 14 + Math.sin(time + i) * 5, y + i, w - 28, 2, "#91bcc444");
-  }
-  rect(
-    55,
-    58,
-    r.width - 110,
-    36,
-    indoor ? "#354a61" : cave ? "#2d4560" : p.edge,
-  );
-  rect(55, 90, 12, r.height - 144, "#263e5644");
-  rect(r.width - 68, 90, 12, r.height - 144, "#263e5644");
-  rect(55, r.height - 68, r.width - 110, 15, indoor ? "#344d65" : p.edge);
-  if (!indoor && !cave)
-    for (let x = 64; x < r.width - 64; x += 32) {
-      rect(x, r.height - 60, 22, 3, "#bedce388");
-      rect(
-        x + 8,
-        r.height - 51 + Math.sin(time * 2 + x) * 3,
-        17,
-        2,
-        "#bedce355",
-      );
+  if (indoor) {
+    rect(445, 260, 70, 80, "#536b7c");
+    for (let i = 0; i < 4; i++) {
+      rect(451 + i * 18, 267, 1, 66, "#a7af9b33");
+      rect(450, 268 + i * 18, 60, 1, "#a7af9b33");
     }
-  for (const d of r.doors) {
-    const [x, y] = doorPoint(r, d.direction),
+  }
+  for (const r of terrainWalls(m)) {
+    const water = ["river", "waterfall", "cistern", "lake"].includes(m.theme);
+    rect(r[0], r[1] + 8, r[2], r[3], water ? "#2b526e" : "#203b5266");
+    rect(
+      r[0],
+      r[1],
+      r[2],
+      r[3],
+      water ? "#376f87" : indoor ? "#324b63" : cave ? "#314e69" : "#87a7ad",
+    );
+    rect(r[0], r[1], r[2], 5, water ? "#99c7cb" : "#b4cdd0");
+    for (let i = 0; i < r[2]; i += 20)
+      rect(r[0] + i, r[1] + r[3] - 8, 10, 3, water ? "#72a9ba" : "#5c8095");
+    if (water)
+      for (let i = 10; i < r[3]; i += 20)
+        rect(
+          r[0] + 15 + Math.sin(time + i) * 6,
+          r[1] + i,
+          r[2] - 30,
+          2,
+          "#91bcc444",
+        );
+    else if (
+      ["forest", "jungle", "village", "camp", "garden"].includes(m.theme)
+    ) {
+      rect(
+        r[0],
+        r[1] + 4,
+        r[2],
+        r[3] - 4,
+        state.map === 0 ? "#709390" : "#507c5e",
+      );
+      for (let i = 0; i < r[2]; i += 14) {
+        rect(
+          r[0] + i,
+          r[1] - 4 + Math.sin(i) * 3,
+          15,
+          12,
+          state.map === 0 ? "#b8d2c9" : "#80a275",
+        );
+        rect(r[0] + i + 3, r[1] + 14, 9, 3, "#9ab49466");
+      }
+    } else if (m.theme === "library") {
+      rect(r[0], r[1], r[2], r[3], "#705b5c");
+      for (let row = 5; row < r[3]; row += 19) {
+        for (let col = 4; col < r[2] - 5; col += 9)
+          rect(
+            r[0] + col,
+            r[1] + row,
+            6,
+            12,
+            ["#ac9f7c", "#879f9c", "#ad8d96"][col % 3],
+          );
+        rect(r[0] + 3, r[1] + row + 13, r[2] - 6, 3, "#b59a7b");
+      }
+    } else if (cave) {
+      for (let i = 0; i < r[2]; i += 18) {
+        rect(r[0] + i, r[1] + 7, 14, r[3] - 12, "#4e6a82");
+        rect(r[0] + i + 4, r[1] + 3, 9, 7, "#91b3bf");
+      }
+    }
+  }
+
+  if (m.theme === "jungle" || m.theme === "forest" || m.theme === "snowhome") {
+    for (let i = 0; i < 8; i++) {
+      const x = 95 + i * 109;
+      if (Math.abs(x - 480) > 58)
+        prop([state.map === 0 ? "pine" : "palm", x, 110]);
+    }
+    for (let i = 0; i < 4; i++) {
+      prop([state.map === 0 ? "pine" : "palm", 68, 195 + i * 90]);
+      prop([state.map === 0 ? "pine" : "palm", 891, 200 + i * 86]);
+    }
+  }
+  if (["garden", "jungle", "camp", "village"].includes(m.theme))
+    for (let i = 0; i < 65; i++) {
+      const x = 100 + seeded(i * 49 + m.layout) * 760,
+        y = 135 + seeded(i * 17 + m.layout) * 342;
+      if (Math.abs(y - 300) < 40 || Math.abs(x - 480) < 45) continue;
+      rect(x, y, 2, 7, state.map === 1 ? "#416e50" : "#5f8790");
+      rect(x - 3, y + 3, 3, 2, "#81a47a");
+      if (i % 4 === 0) {
+        rect(x - 2, y - 1, 6, 3, ["#e1c2a6", "#b7c6dc", "#dfcf94"][i % 3]);
+        rect(x, y, 2, 1, "#fff0c4");
+      }
+    }
+  // Frames, cliff edges and doorway carvings.
+  if (indoor || cave) {
+    rect(55, 58, 850, 36, indoor ? "#354a61" : "#2d4560");
+    rect(55, 89, 850, 8, "#172c4266");
+    for (let x = 62; x < 900; x += 48) {
+      rect(x, 60, 44, 2, "#78929b55");
+      rect(x + 44, 60, 2, 28, "#13283b66");
+    }
+    rect(55, 90, 12, 424, "#263e56");
+    rect(892, 90, 12, 424, "#263e56");
+    rect(55, 508, 850, 15, "#344d65");
+  } else {
+    rect(64, 503, 832, 9, "#eef3d877");
+    for (let x = 65; x < 895; x += 32) {
+      rect(x, 512, 22, 3, "#bee1df88");
+      rect(x + 8, 520 + Math.sin(time * 2 + x) * 3, 17, 2, "#bedce355");
+    }
+  }
+  for (const d of m.doors) {
+    const pos = { E: [851, 295], W: [109, 295], N: [480, 123], S: [480, 481] }[
+        d.direction
+      ],
       locked = !!d.requires && !state.flags[d.requires],
       vertical = d.direction === "N" || d.direction === "S";
     rect(
-      x - (vertical ? 32 : 18),
-      y - (vertical ? 16 : 32),
+      pos[0] - (vertical ? 32 : 18),
+      pos[1] - (vertical ? 16 : 32),
       vertical ? 64 : 36,
       vertical ? 32 : 64,
       locked ? "#795e67" : "#223c51",
     );
     rect(
-      x - (vertical ? 28 : 14),
-      y - (vertical ? 12 : 28),
+      pos[0] - (vertical ? 28 : 14),
+      pos[1] - (vertical ? 12 : 28),
       vertical ? 56 : 28,
       vertical ? 24 : 56,
       locked ? "#b48e77" : "#a2b5a2",
     );
     text(
       { E: "→", W: "←", N: "↑", S: "↓" }[d.direction],
-      x,
-      y + 5,
+      pos[0],
+      pos[1] + 5,
       19,
       locked ? "#573e50" : "#294d63",
       "center",
     );
-  }
-  // Dense scenery sits at the actual room edges, not at the camera edges.
-  if (["forest", "snowhome", "jungle"].includes(r.theme)) {
-    for (let x = 100; x < r.width - 80; x += 115) {
-      if (Math.abs(x - center.x) > 65)
-        prop([state.map === 0 ? "pine" : "palm", x, 110]);
-    }
-    for (let y = 210; y < r.height - 85; y += 105) {
-      if (Math.abs(y - center.y) > 55) {
-        prop([state.map === 0 ? "pine" : "palm", 68, y]);
-        prop([state.map === 0 ? "pine" : "palm", r.width - 69, y]);
-      }
-    }
-  }
-  for (let i = 0; i < 140; i++) {
-    const x = 100 + seeded(i * 49 + r.layout) * (r.width - 200),
-      y = 135 + seeded(i * 17 + r.layout) * (r.height - 240);
-    if (
-      x < left ||
-      x > right ||
-      y < top ||
-      y > bottom ||
-      Math.abs(y - center.y) < 40 ||
-      Math.abs(x - center.x) < 45 ||
-      (r.puzzle && insidePuzzle(r, x, y, 45))
-    )
-      continue;
-    if (["garden", "jungle", "camp", "village"].includes(r.theme)) {
-      rect(x, y, 2, 7, r.region === 1 ? "#416e50" : "#5f8790");
-      rect(x - 3, y + 3, 3, 2, "#81a47a");
-      if (i % 4 === 0)
-        rect(x - 2, y - 1, 6, 3, ["#e1c2a6", "#b7c6dc", "#dfcf94"][i % 3]);
-    }
+    if (locked) rect(pos[0] - 4, pos[1] - 7, 8, 10, "#f0cf8d");
   }
   for (const f of footprints)
     if (f.life > 0) ellipse(f.x, f.y, 3, 2, snow ? "#779eae44" : "#344d5c33");
-  drawPuzzles(r);
   const actors = [
-    ...r.props.map((p) => ({ y: p[2], draw: () => prop(p) })),
+    ...m.props.map((p) => ({ y: p[2], draw: () => prop(p) })),
     ...activeObjects().map((o) => ({ y: o[2], draw: () => object(o) })),
-    ...r.npcs.map((n) => ({
+    ...m.npcs.map((n) => ({
       y: n[2],
       draw: () =>
         n[0] === "Pebble" || n[0] === "Nim"
@@ -3465,30 +2519,39 @@ function drawWorld() {
               n[0] === "Pippy",
             ),
     })),
+    ...m.enemies
+      .filter((e) => !state.flags[e[1]])
+      .map((e) => ({
+        y: e[3],
+        draw: () => {
+          creature(e[0], e[2], e[3] + Math.sin(time * 2 + e[2]) * 2);
+          text("!", e[2], e[3] - 61, 16, "#e7b28e", "center");
+        },
+      })),
     { y: state.y, draw: () => penguin(state.x, state.y, "#deded0", true) },
   ];
   actors.sort((a, b) => a.y - b.y).forEach((a) => a.draw());
   const shade = ctx.createRadialGradient(
     state.x,
     state.y,
-    100,
+    50,
     state.x,
     state.y,
-    700,
+    600,
   );
   shade.addColorStop(0, "#081a2800");
   shade.addColorStop(
     1,
-    cave ? "#081321aa" : indoor ? "#08152577" : "#0b254326",
+    cave ? "#081321aa" : indoor ? "#08152588" : "#0b25433c",
   );
   ctx.fillStyle = shade;
-  ctx.fillRect(camera.x, camera.y, W, H);
+  ctx.fillRect(0, 0, W, H);
   for (const o of activeObjects())
     if (o[0] === "shrine") glow(o[1], o[2] - 20, 100, "#ffd29127");
-  if (cave || r.theme === "sanctum")
-    for (let i = 0; i < 18; i++) {
-      const x = 100 + seeded(i * 41) * (r.width - 200),
-        y = 100 + seeded(i * 13) * (r.height - 200);
+  if (cave || m.theme === "sanctum")
+    for (let i = 0; i < 12; i++) {
+      const x = 100 + seeded(i * 41) * 760,
+        y = 100 + seeded(i * 13) * 385;
       ellipse(
         x + Math.sin(time + i) * 8,
         y + Math.cos(time * 0.7 + i) * 6,
@@ -3497,74 +2560,73 @@ function drawWorld() {
         "#b5ddf288",
       );
     }
-  ctx.restore();
   if (snow)
-    for (let i = 0; i < 28; i++)
-      rect(
-        (i * 89 + time * 12 - camera.x * 0.2 + W) % W,
-        (i * 53 + time * (14 + (i % 5)) - camera.y * 0.2 + H) % H,
-        2,
-        2,
-        "#f5f8e799",
+    for (let i = 0; i < 27; i++) {
+      const x = (i * 89 + time * 12) % W,
+        y = (i * 53 + time * (14 + (i % 5))) % H;
+      rect(x, y, i % 3 === 0 ? 3 : 2, 2, "#f5f8e7aa");
+    }
+  if (m.theme === "jungle" || m.theme === "garden" || m.theme === "camp")
+    for (let i = 0; i < 16; i++) {
+      const x = 90 + seeded(i * 37) * 770,
+        y = 100 + seeded(i * 19) * 390;
+      glow(
+        x + Math.sin(time + i) * 8,
+        y + Math.cos(time * 0.8 + i) * 5,
+        8,
+        "#e7f7b144",
       );
-  rect(20, 17, Math.min(570, r.name.length * 9 + 39), 32, "#10263adb");
-  text(r.name.toUpperCase(), 36, 39, 14, "#f2e6c7");
-  // Local minimap includes the camera rectangle, so off-screen doorways stay understandable.
-  const mx = 780,
-    my = 23,
-    mw = 153,
-    mh = 90;
-  rect(mx - 10, my - 10, mw + 20, mh + 28, "#10263aee");
-  rect(mx, my, mw, mh, "#446371");
-  for (const d of r.doors) {
-    const pos = doorPoint(r, d.direction);
+      rect(
+        x + Math.sin(time + i) * 8,
+        y + Math.cos(time * 0.8 + i) * 5,
+        2,
+        2,
+        "#fff2bcaa",
+      );
+    }
+  rect(20, 17, Math.min(570, m.name.length * 9 + 39), 32, "#10263adb");
+  text(m.name.toUpperCase(), 36, 39, 14, "#f2e6c7");
+  // Miniature region graph in the corner; the journal gives room names.
+  const region = Object.values(WORLD.rooms).filter(
+      (r) => r.region === state.map,
+    ),
+    minX = Math.min(...region.map((r) => r.gx)),
+    minY = Math.min(...region.map((r) => r.gy));
+  rect(744, 13, 197, 72, "#10263add");
+  for (const r of region) {
+    const x = 760 + (r.gx - minX) * 28,
+      y = 29 + (r.gy - minY) * 19;
+    for (const d of r.doors) {
+      const to = WORLD.rooms[d.to];
+      if (to && to.region === r.region) {
+        ctx.strokeStyle = "#5c7c89";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(760 + (to.gx - minX) * 28, 29 + (to.gy - minY) * 19);
+        ctx.stroke();
+      }
+    }
     rect(
-      mx + (pos[0] / r.width) * mw - 2,
-      my + (pos[1] / r.height) * mh - 2,
-      5,
-      5,
-      "#dacb96",
+      x - 4,
+      y - 4,
+      9,
+      9,
+      r.id === state.room
+        ? "#f1d28d"
+        : state.visited[r.id]
+          ? "#9bbeb7"
+          : "#375467",
     );
   }
-  if (r.puzzle) {
-    const b = puzzleBoard(r);
-    rect(
-      mx + (b.x / r.width) * mw,
-      my + (b.y / r.height) * mh,
-      (b.w / r.width) * mw,
-      (b.h / r.height) * mh,
-      state.flags[r.puzzle.id] ? "#a3c9a5" : "#b4a481",
-    );
+  text("M · MAP", 875, 76, 9, "#bbcfc6");
+  if (nearby && !dialogue && mode === "world") {
+    const label = "E · " + nearby.name;
+    text(label, 480, 554, 13, "#fff1c4", "center");
   }
-  ctx.strokeStyle = "#a1bdc5";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(
-    mx + (camera.x / r.width) * mw,
-    my + (camera.y / r.height) * mh,
-    (W / r.width) * mw,
-    (H / r.height) * mh,
-  );
-  rect(
-    mx + (state.x / r.width) * mw - 2,
-    my + (state.y / r.height) * mh - 2,
-    4,
-    4,
-    "#ffe3a0",
-  );
-  text("M · ROOM JOURNAL", mx, my + mh + 13, 9, "#c2d5cc");
-  if (nearby && !dialogue && mode === "world")
-    text(
-      (nearby.kind === "boss" ? "Approach · " : "E · ") + nearby.name,
-      480,
-      554,
-      13,
-      "#fff1c4",
-      "center",
-    );
-  if (r.safe) text("SAFE AREA", 28, 554, 10, "#bed8d3");
-  else if (state.assist) text("ASSIST", 28, 554, 10, "#bed8d3");
   if (roomTransition > 0)
     rect(0, 0, W, H, "rgba(6,18,33," + roomTransition * 0.8 + ")");
+  if (state.assist) text("ASSIST", 28, 554, 10, "#bed8d3");
 }
 
 function heart(x, y) {
@@ -3683,60 +2745,11 @@ function drawBattle() {
       }
     }
     for (const p of b.bullets) {
-      if (["seed", "snow", "bubble", "water", "royalWater"].includes(p.kind)) {
-        const c =
-          p.kind === "seed"
-            ? "#bd9768"
-            : p.kind === "snow"
-              ? "#e9f3ed"
-              : p.kind === "royalWater"
-                ? "#b9a3d8"
-                : "#a8d3e0";
-        ellipse(p.x, p.y, p.r, p.r, c);
-        ellipse(
-          p.x - 2,
-          p.y - 2,
-          Math.max(2, p.r - 4),
-          Math.max(2, p.r - 4),
-          "#eff8e1",
-        );
-      } else if (p.kind === "fish") {
-        rect(p.x - 7, p.y - 3, 14, 7, "#9ebdc7");
-        rect(p.x - 11, p.y - 6, 4, 11, "#c3d6ce");
-        rect(p.x + 4, p.y - 2, 2, 2, "#28475d");
-      } else if (p.kind === "feather") {
-        rect(p.x - 2, p.y - 9, 4, 18, "#dfe6d5");
-        rect(p.x - 5, p.y - 5, 9, 8, "#a9c5cd");
-      } else if (["spear", "royalSpear", "tooth", "claw"].includes(p.kind)) {
-        rect(
-          p.x - 2,
-          p.y - 10,
-          4,
-          20,
-          p.kind === "royalSpear" ? "#ead09b" : "#c5d9db",
-        );
-        rect(
-          p.x - 5,
-          p.y - 10,
-          10,
-          4,
-          p.kind === "royalSpear" ? "#f7e1a7" : "#f1f4e1",
-        );
-      } else if (p.kind === "seal") {
-        ctx.strokeStyle = "#edce89";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
-        ctx.stroke();
-        text("◇", p.x, p.y + 4, 14, "#f8df9e", "center");
-      } else if (p.kind === "shield") {
-        rect(p.x - 8, p.y - 9, 16, 18, "#7d9eaf");
-        rect(p.x - 3, p.y - 7, 6, 14, "#b5c8c9");
-      } else if (p.kind === "shell") {
+      if (p.kind === "shell") {
         ellipse(p.x, p.y, 8, 8, "#506b86");
         ellipse(p.x - 1, p.y - 2, 6, 6, "#b2d1dd");
         rect(p.x - 3, p.y - 5, 2, 7, "#e7efdd");
-      } else if (["star", "darkStar", "anchor"].includes(p.kind)) {
+      } else if (p.kind === "star") {
         text("✦", p.x, p.y + 5, 17, "#e9cc94", "center");
       } else if (p.kind === "shard") {
         ctx.fillStyle = "#c5dfeb";
@@ -3837,25 +2850,6 @@ window.addEventListener("keydown", (e) => {
       closePanel();
     }
     return;
-  }
-  // Enter must resolve the timing strike on keydown, even after FIGHT replaces
-  // its focused button. Otherwise the browser has no control to activate and
-  // the strike waits for its automatic timeout.
-  if (
-    k === "enter" &&
-    mode === "battle" &&
-    ["strike", "result"].includes(battle.phase)
-  ) {
-    const focusedButton = e.target.closest?.("button");
-    const battleInput =
-      !focusedButton ||
-      focusedButton.closest("#battleActions") ||
-      focusedButton.id === "interactButton";
-    if (battleInput) {
-      e.preventDefault();
-      if (!e.repeat && !e.isComposing) interact();
-      return;
-    }
   }
   if (movement.includes(k)) {
     e.preventDefault();
