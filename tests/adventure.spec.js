@@ -372,3 +372,51 @@ test("game assets load and repository files stay private", async ({
   for (const file of ["/server.js", "/package.json", "/.git/config"])
     expect((await request.get(file)).status()).toBe(404);
 });
+
+test("walking encounters start after 90 seconds without E and pause in safe areas", async ({
+  page,
+}) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    const danger = Object.values(WORLD.rooms).find((r) => r.enemies.length);
+    state.room = danger.id;
+    state.map = danger.region;
+    state.x = 480;
+    state.y = 350;
+    state.encounterWalking = 0;
+    for (let i = 0; i < 899; i++) updateWalkingEncounters(0.1);
+    const before = mode;
+    updateWalkingEncounters(0);
+    const idle = state.encounterWalking;
+    state.room = "h0";
+    state.map = 0;
+    updateWalkingEncounters(30);
+    const safe = state.encounterWalking;
+    state.room = danger.id;
+    state.map = danger.region;
+    updateWalkingEncounters(0.11);
+    const started = mode === "battle" && battle.type === danger.enemies[0][0];
+    const reset = state.encounterWalking;
+    mode = "world";
+    battle = null;
+    state.encounterWalking = 0;
+    keys.clear();
+    updateWorld(0.04);
+    return {
+      before,
+      idle,
+      safe,
+      started,
+      reset,
+      idleAfter: state.encounterWalking,
+      visibleEnemies: targets().filter((n) => n.kind === "enemy").length,
+    };
+  });
+  expect(result.before).toBe("world");
+  expect(result.idle).toBeCloseTo(89.9);
+  expect(result.safe).toBe(result.idle);
+  expect(result.started).toBe(true);
+  expect(result.reset).toBe(0);
+  expect(result.idleAfter).toBe(0);
+  expect(result.visibleEnemies).toBe(0);
+});

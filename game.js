@@ -342,6 +342,7 @@ function fresh() {
     xp: 0,
     assist: false,
     steps: 0,
+    encounterWalking: 0,
   };
 }
 state = fresh();
@@ -580,7 +581,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after about 90 seconds of walking in dangerous rooms. Villages and rest areas are safe; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -754,16 +755,6 @@ function targets() {
       y: o[2],
       id: o[3],
     })),
-    ...m.enemies
-      .filter((e) => !state.flags[e[1]])
-      .map((e) => ({
-        kind: "enemy",
-        name: enemies[e[0]].name,
-        x: e[2],
-        y: e[3],
-        id: e[1],
-        enemy: e[0],
-      })),
     ...m.doors.map((d) => ({
       kind: "exit",
       name:
@@ -1084,6 +1075,7 @@ function ending() {
 // Battle phases: choice → strike → dodge → choice, or result.
 function startBattle(type, id) {
   if (mode !== "world") return;
+  state.encounterWalking = 0;
   save();
   mode = "battle";
   keys.clear();
@@ -1750,6 +1742,36 @@ function walkable(x, y) {
       Math.hypot(x - n.x, y - n.y) < (n.kind === "boss" ? 25 : 18),
   );
 }
+// Count actual walking only: menus, dialogue, standing still, and walls do not count.
+function updateWalkingEncounters(walkingSeconds) {
+  if (
+    mode !== "world" ||
+    dialogue ||
+    !$("overlay").hidden ||
+    state.flags.ending
+  )
+    return;
+  const room = currentRoom();
+  const boss = activeObjects().find(
+    (o) =>
+      o[0] === "boss" &&
+      Math.hypot(state.x - o[1], state.y - o[2]) < 65 &&
+      (o[3] !== "baby" || fruitCount() >= 3),
+  );
+  if (boss) {
+    startBattle(boss[3], boss[3]);
+    return;
+  }
+  if (!room.enemies.length || walkingSeconds <= 0) return;
+  const elapsed = Number.isFinite(state.encounterWalking)
+    ? Math.max(0, Math.min(90, state.encounterWalking))
+    : 0;
+  state.encounterWalking = elapsed + walkingSeconds;
+  if (state.encounterWalking < 90) return;
+  const pool = room.enemies;
+  const enemy = pool[Math.floor(Math.random() * pool.length)][0];
+  startBattle(enemy, "walking-encounter");
+}
 function updateWorld(dt) {
   const [dx, dy] = direction(),
     speed = 150;
@@ -1758,6 +1780,8 @@ function updateWorld(dt) {
   if (walkable(state.x + dx * speed * dt, state.y)) state.x += dx * speed * dt;
   if (walkable(state.x, state.y + dy * speed * dt)) state.y += dy * speed * dt;
   state.steps = (state.steps || 0) + Math.hypot(state.x - px, state.y - py);
+  updateWalkingEncounters(Math.hypot(state.x - px, state.y - py) / speed);
+  if (mode !== "world") return;
   if ((dx || dy) && time - lastFootprint > 0.17) {
     footprints.push({
       x: state.x + (Math.sin(time * 16) > 0 ? 5 : -5),
@@ -2519,15 +2543,6 @@ function drawWorld() {
               n[0] === "Pippy",
             ),
     })),
-    ...m.enemies
-      .filter((e) => !state.flags[e[1]])
-      .map((e) => ({
-        y: e[3],
-        draw: () => {
-          creature(e[0], e[2], e[3] + Math.sin(time * 2 + e[2]) * 2);
-          text("!", e[2], e[3] - 61, 16, "#e7b28e", "center");
-        },
-      })),
     { y: state.y, draw: () => penguin(state.x, state.y, "#deded0", true) },
   ];
   actors.sort((a, b) => a.y - b.y).forEach((a) => a.draw());
