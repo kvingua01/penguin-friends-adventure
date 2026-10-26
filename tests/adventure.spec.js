@@ -373,7 +373,7 @@ test("game assets load and repository files stay private", async ({
     expect((await request.get(file)).status()).toBe(404);
 });
 
-test("every third room triggers a battle after a few steps, including backtracking and chapter crossings", async ({
+test("every fifth room triggers a battle after a few steps, including backtracking and chapter crossings", async ({
   page,
 }) => {
   await begin(page);
@@ -384,6 +384,12 @@ test("every third room triggers a battle after a few steps, including backtracki
     enterRoom("h0", "W");
     updateWalkingEncounters(100);
     const second = mode;
+    enterRoom("h1", "E");
+    updateWalkingEncounters(100);
+    if (mode !== "world") throw Error("Third room triggered a battle");
+    enterRoom("h0", "W");
+    updateWalkingEncounters(100);
+    if (mode !== "world") throw Error("Fourth room triggered a battle");
     changeMap(1);
     updateWalkingEncounters(0);
     const idle = mode;
@@ -422,7 +428,7 @@ test("all rooms allow scheduled encounters without E", async ({ page }) => {
       state.map = room.region;
       state.x = 100;
       state.y = 300;
-      state.encounterRooms = 3;
+      state.encounterRooms = 5;
       state.encounterSteps = 0;
       updateWalkingEncounters(0.61);
       if (mode !== "battle" || battle.boss) failures.push(room.id);
@@ -430,4 +436,49 @@ test("all rooms allow scheduled encounters without E", async ({ page }) => {
     return failures;
   });
   expect(failures).toEqual([]);
+});
+
+test("settings apply and save exact heart and attack speed multipliers", async ({
+  page,
+}) => {
+  await begin(page);
+  await page.evaluate(() => menu());
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  for (const [name, factor] of [
+    ["Easy", 0.7],
+    ["Normal", 1],
+    ["Hard", 1.2],
+    ["Extra Hard", 1.5],
+  ]) {
+    await page.getByRole("button", { name, exact: true }).click();
+    const actual = await page.evaluate(() => {
+      const savedDifficulty = readSave().difficulty;
+      closePanel();
+      mode = "world";
+      startBattle("snowcrab", "speed-test");
+      beginDodge();
+      battle.bullets = [];
+      battle.hazards = [];
+      battle.spawnTime = 0;
+      bullet(300, 330, 100, 0);
+      const before = battle.heart.x;
+      keys.add("d");
+      updateBattle(0.1);
+      keys.clear();
+      const result = {
+        heart: (battle.heart.x - before) / 19.3,
+        attack: (battle.bullets[0].x - 300) / 10,
+        cadence: battle.spawnTime / 0.1,
+        saved: savedDifficulty === state.difficulty,
+      };
+      mode = "world";
+      battle = null;
+      settings();
+      return result;
+    });
+    expect(actual.heart).toBeCloseTo(factor);
+    expect(actual.attack).toBeCloseTo(factor);
+    expect(actual.cadence).toBeCloseTo(factor);
+    expect(actual.saved).toBe(true);
+  }
 });

@@ -17,6 +17,15 @@ const keys = new Set(),
     "arrowleft",
     "arrowright",
   ];
+const DIFFICULTIES = {
+  easy: { name: "Easy", speed: 0.7 },
+  normal: { name: "Normal", speed: 1 },
+  hard: { name: "Hard", speed: 1.2 },
+  extraHard: { name: "Extra Hard", speed: 1.5 },
+};
+function difficultySpeed() {
+  return (DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal).speed;
+}
 const items = {
   fish: { name: "Silver fish", heal: 35 },
   boonona: { name: "Boonona", heal: 25 },
@@ -342,6 +351,7 @@ function fresh() {
     flags: {},
     xp: 0,
     assist: false,
+    difficulty: "normal",
     steps: 0,
     encounterRooms: 0,
     encounterSteps: 0,
@@ -397,6 +407,7 @@ function readSave() {
     if (!s.visited || typeof s.visited !== "object" || Array.isArray(s.visited))
       s.visited = { [s.room]: true };
     s.assist = !!s.assist;
+    if (!Object.hasOwn(DIFFICULTIES, s.difficulty)) s.difficulty = "normal";
     return s;
   } catch {
     return null;
@@ -583,9 +594,30 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every third room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
+}
+function settings() {
+  const current = DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal;
+  panel(
+    "<h2>Settings</h2><p>Difficulty: " +
+      current.name +
+      "</p><small>Changes heart movement and monster attack speed. Easy: 0.7× · Normal: 1× · Hard: 1.2× · Extra Hard: 1.5×.</small>",
+  );
+  panelButtons([
+    ...Object.entries(DIFFICULTIES).map(([id, option]) => [
+      option.name,
+      () => {
+        state.difficulty = id;
+        state.assist = false;
+        save();
+        settings();
+      },
+      id === (state.difficulty || "normal"),
+    ]),
+    ["Back", menu],
+  ]);
 }
 function menu() {
   if (dialogue) return;
@@ -596,6 +628,7 @@ function menu() {
   );
   panelButtons([
     ["Resume", closePanel, true],
+    ["Settings", settings],
     [
       "Assist: " + (state.assist ? "on" : "off"),
       () => {
@@ -1261,9 +1294,11 @@ function finishBattle(outcome) {
     if (battle !== b) return;
     if (outcome === "lose") {
       const assist = state.assist;
+      const difficulty = state.difficulty;
       const saved = readSave();
       if (saved) state = saved;
       state.assist = assist;
+      state.difficulty = difficulty;
       state.hp = state.maxHp;
       state.inventory.fish = Math.max(2, state.inventory.fish);
     }
@@ -1584,10 +1619,11 @@ function updateBattle(dt) {
   }
   if (b.phase !== "dodge") return;
   b.phaseTime += dt;
-  b.spawnTime += dt;
+  const attackDt = dt * difficultySpeed();
+  b.spawnTime += attackDt;
   b.invulnerable = Math.max(0, b.invulnerable - dt);
   let [dx, dy] = direction();
-  const speed = state.assist ? 215 : 193;
+  const speed = (state.assist ? 215 : 193) * difficultySpeed();
   b.heart.x = Math.max(
     arena.x + 8,
     Math.min(arena.x + arena.w - 8, b.heart.x + dx * speed * dt),
@@ -1615,7 +1651,7 @@ function updateBattle(dt) {
       spawnPattern("laser");
   }
   for (const h of b.hazards) {
-    h.age += dt;
+    h.age += attackDt;
     if (h.age >= h.warning && !h.fired) {
       h.fired = true;
       if (h.kind === "burst") {
@@ -1648,11 +1684,11 @@ function updateBattle(dt) {
   }
   b.hazards = b.hazards.filter((h) => h.age < h.warning + h.duration);
   for (const p of b.bullets) {
-    p.age += dt;
+    p.age += attackDt;
     p.x +=
       (p.vx + (p.curve ? Math.sin(p.age * 4 + (p.phase || 0)) * p.curve : 0)) *
-      dt;
-    p.y += p.vy * dt;
+      attackDt;
+    p.y += p.vy * attackDt;
     if (p.kind === "shell" && p.bounces < 3) {
       if (p.x < arena.x + p.r || p.x > arena.x + arena.w - p.r) {
         p.vx = -p.vx;
@@ -1751,7 +1787,7 @@ function countEncounterRoom() {
   const count = Number.isFinite(state.encounterRooms)
     ? state.encounterRooms
     : 0;
-  state.encounterRooms = Math.min(3, Math.max(0, Math.floor(count)) + 1);
+  state.encounterRooms = Math.min(5, Math.max(0, Math.floor(count)) + 1);
   state.encounterSteps = 0;
 }
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
@@ -1768,7 +1804,7 @@ function updateWalkingEncounters(walkingSeconds) {
     startBattle(boss[3], boss[3]);
     return;
   }
-  if (walkingSeconds <= 0 || !(state.encounterRooms >= 3)) return;
+  if (walkingSeconds <= 0 || !(state.encounterRooms >= 5)) return;
   const walked = Number.isFinite(state.encounterSteps)
     ? Math.max(0, state.encounterSteps)
     : 0;
