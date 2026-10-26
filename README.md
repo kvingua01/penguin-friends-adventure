@@ -47,7 +47,7 @@ Bosses have substantially increased health and damage. Below 65% health, they ch
 3. **Quiet Cove / Sea Gate:** Slippy is captured. Ask Pippy for help, sail to the gate, defeat Captain Undertow, and enter the kingdom.
 4. **Tidal Halls / Throne Room:** defeat the Pearl and Tide wardens, use both seals to enter the throne room, defeat King Orca, and free Slippy from the cage for the ending.
 
-Regular enemies appear automatically after 60 seconds of actual walking in any room, including homes, villages, shops, rest areas, boss chambers, and royal halls. There are no areas exempt from random encounters and no visible countdown or E prompt. Walking time carries across rooms; idle time, blocked movement, dialogue, and menus do not count. Each battle resets the count, including after escape or defeat. Regular encounters can repeat. Bosses begin when approached, with story requirements preserved. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
+Regular enemies appear automatically after a few steps (90 world pixels) in every third room entered. Backtracking and chapter crossings count. Homes, villages, shops, rest areas, boss chambers, and royal halls all allow these encounters. There is no timer or E prompt. A pending encounter carries forward if you leave before taking enough steps. Idle time, blocked movement, dialogue, and menus do not advance the steps. Each battle resets the three-room count. Progress is included in saves. Bosses begin when approached, with story requirements preserved. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
 
 ## Validation
 

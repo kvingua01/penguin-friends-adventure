@@ -244,6 +244,7 @@ function enterRoom(id, direction) {
   const r = WORLD.rooms[id];
   if (!r || r.region !== state.map) return;
   state.room = id;
+  countEncounterRoom();
   const spawns = { E: [160, 295], W: [802, 295], N: [480, 430], S: [480, 175] };
   const spot = spawns[direction] || [480, 350];
   placePlayer(...spot);
@@ -342,7 +343,8 @@ function fresh() {
     xp: 0,
     assist: false,
     steps: 0,
-    encounterWalking: 0,
+    encounterRooms: 0,
+    encounterSteps: 0,
   };
 }
 state = fresh();
@@ -581,7 +583,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after about 60 seconds of walking in any room, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every third room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1042,6 +1044,7 @@ function exitMap() {
 function changeMap(index) {
   state.map = index;
   state.room = WORLD.starts[index];
+  countEncounterRoom();
   state.x = 480;
   state.y = 350;
   state.visited[state.room] = true;
@@ -1075,7 +1078,8 @@ function ending() {
 // Battle phases: choice → strike → dodge → choice, or result.
 function startBattle(type, id) {
   if (mode !== "world") return;
-  state.encounterWalking = 0;
+  state.encounterRooms = 0;
+  state.encounterSteps = 0;
   save();
   mode = "battle";
   keys.clear();
@@ -1742,6 +1746,14 @@ function walkable(x, y) {
       Math.hypot(x - n.x, y - n.y) < (n.kind === "boss" ? 25 : 18),
   );
 }
+// Count room entries, including backtracking and chapter crossings.
+function countEncounterRoom() {
+  const count = Number.isFinite(state.encounterRooms)
+    ? state.encounterRooms
+    : 0;
+  state.encounterRooms = Math.min(3, Math.max(0, Math.floor(count)) + 1);
+  state.encounterSteps = 0;
+}
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
 function updateWalkingEncounters(walkingSeconds) {
   if (mode !== "world" || dialogue || !$("overlay").hidden) return;
@@ -1756,12 +1768,12 @@ function updateWalkingEncounters(walkingSeconds) {
     startBattle(boss[3], boss[3]);
     return;
   }
-  if (walkingSeconds <= 0) return;
-  const elapsed = Number.isFinite(state.encounterWalking)
-    ? Math.max(0, Math.min(60, state.encounterWalking))
+  if (walkingSeconds <= 0 || !(state.encounterRooms >= 3)) return;
+  const walked = Number.isFinite(state.encounterSteps)
+    ? Math.max(0, state.encounterSteps)
     : 0;
-  state.encounterWalking = elapsed + walkingSeconds;
-  if (state.encounterWalking < 60) return;
+  state.encounterSteps = walked + walkingSeconds * 150;
+  if (state.encounterSteps < 90) return;
   const pool = room.enemies.length
     ? room.enemies.map((e) => e[0])
     : [

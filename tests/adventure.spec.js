@@ -373,9 +373,45 @@ test("game assets load and repository files stay private", async ({
     expect((await request.get(file)).status()).toBe(404);
 });
 
-test("every room triggers encounters after one minute of walking without E", async ({
+test("every third room triggers a battle after a few steps, including backtracking and chapter crossings", async ({
   page,
 }) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    enterRoom("h1", "E");
+    updateWalkingEncounters(100);
+    const first = mode;
+    enterRoom("h0", "W");
+    updateWalkingEncounters(100);
+    const second = mode;
+    changeMap(1);
+    updateWalkingEncounters(0);
+    const idle = mode;
+    updateWalkingEncounters(0.3);
+    const few = mode;
+    save();
+    const saved = readSave();
+    state = saved;
+    updateWalkingEncounters(0.31);
+    const fought = mode === "battle" && !battle.boss;
+    const reset = state.encounterRooms;
+    mode = "world";
+    battle = null;
+    updateWalkingEncounters(100);
+    return { first, second, idle, few, fought, reset, noRepeat: mode };
+  });
+  expect(result).toEqual({
+    first: "world",
+    second: "world",
+    idle: "world",
+    few: "world",
+    fought: true,
+    reset: 0,
+    noRepeat: "world",
+  });
+});
+
+test("all rooms allow scheduled encounters without E", async ({ page }) => {
   await begin(page);
   const failures = await page.evaluate(() => {
     const failures = [];
@@ -386,40 +422,12 @@ test("every room triggers encounters after one minute of walking without E", asy
       state.map = room.region;
       state.x = 100;
       state.y = 300;
-      state.encounterWalking = 0;
-      updateWalkingEncounters(59);
-      if (mode !== "world") failures.push(room.id + " triggered early");
-      updateWalkingEncounters(0);
-      if (state.encounterWalking !== 59)
-        failures.push(room.id + " counted idle time");
-      updateWalkingEncounters(1);
-      if (mode !== "battle" || battle.boss)
-        failures.push(room.id + " missing regular encounter");
-      if (state.encounterWalking !== 0)
-        failures.push(room.id + " failed to reset");
+      state.encounterRooms = 3;
+      state.encounterSteps = 0;
+      updateWalkingEncounters(0.61);
+      if (mode !== "battle" || battle.boss) failures.push(room.id);
     }
     return failures;
   });
   expect(failures).toEqual([]);
-});
-
-test("walking in a wilderness room without old monster placements still triggers combat", async ({
-  page,
-}) => {
-  await begin(page);
-  const result = await page.evaluate(() => {
-    state.room = "h5";
-    state.map = 0;
-    state.x = 480;
-    state.y = 350;
-    state.encounterWalking = 59.9;
-    const oldPlacements = currentRoom().enemies.length;
-    keys.add("d");
-    for (let i = 0; i < 5 && mode === "world"; i++) updateWorld(0.04);
-    keys.clear();
-    return { oldPlacements, mode, enemy: battle?.type };
-  });
-  expect(result.oldPlacements).toBe(0);
-  expect(result.mode).toBe("battle");
-  expect(result.enemy).toBe("snowcrab");
 });
