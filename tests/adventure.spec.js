@@ -373,52 +373,34 @@ test("game assets load and repository files stay private", async ({
     expect((await request.get(file)).status()).toBe(404);
 });
 
-test("walking encounters start after 90 seconds without E and pause in safe areas", async ({
+test("every room triggers encounters after one minute of walking without E", async ({
   page,
 }) => {
   await begin(page);
-  const result = await page.evaluate(() => {
-    const danger = Object.values(WORLD.rooms).find((r) => r.enemies.length);
-    state.room = danger.id;
-    state.map = danger.region;
-    state.x = 480;
-    state.y = 350;
-    state.encounterWalking = 0;
-    for (let i = 0; i < 899; i++) updateWalkingEncounters(0.1);
-    const before = mode;
-    updateWalkingEncounters(0);
-    const idle = state.encounterWalking;
-    state.room = "h0";
-    state.map = 0;
-    updateWalkingEncounters(30);
-    const safe = state.encounterWalking;
-    state.room = danger.id;
-    state.map = danger.region;
-    updateWalkingEncounters(0.11);
-    const started = mode === "battle" && battle.type === danger.enemies[0][0];
-    const reset = state.encounterWalking;
-    mode = "world";
-    battle = null;
-    state.encounterWalking = 0;
-    keys.clear();
-    updateWorld(0.04);
-    return {
-      before,
-      idle,
-      safe,
-      started,
-      reset,
-      idleAfter: state.encounterWalking,
-      visibleEnemies: targets().filter((n) => n.kind === "enemy").length,
-    };
+  const failures = await page.evaluate(() => {
+    const failures = [];
+    for (const room of Object.values(WORLD.rooms)) {
+      mode = "world";
+      battle = null;
+      state.room = room.id;
+      state.map = room.region;
+      state.x = 100;
+      state.y = 300;
+      state.encounterWalking = 0;
+      updateWalkingEncounters(59);
+      if (mode !== "world") failures.push(room.id + " triggered early");
+      updateWalkingEncounters(0);
+      if (state.encounterWalking !== 59)
+        failures.push(room.id + " counted idle time");
+      updateWalkingEncounters(1);
+      if (mode !== "battle" || battle.boss)
+        failures.push(room.id + " missing regular encounter");
+      if (state.encounterWalking !== 0)
+        failures.push(room.id + " failed to reset");
+    }
+    return failures;
   });
-  expect(result.before).toBe("world");
-  expect(result.idle).toBeCloseTo(89.9);
-  expect(result.safe).toBe(result.idle);
-  expect(result.started).toBe(true);
-  expect(result.reset).toBe(0);
-  expect(result.idleAfter).toBe(0);
-  expect(result.visibleEnemies).toBe(0);
+  expect(failures).toEqual([]);
 });
 
 test("walking in a wilderness room without old monster placements still triggers combat", async ({
@@ -430,7 +412,7 @@ test("walking in a wilderness room without old monster placements still triggers
     state.map = 0;
     state.x = 480;
     state.y = 350;
-    state.encounterWalking = 89.9;
+    state.encounterWalking = 59.9;
     const oldPlacements = currentRoom().enemies.length;
     keys.add("d");
     for (let i = 0; i < 5 && mode === "world"; i++) updateWorld(0.04);

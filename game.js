@@ -581,7 +581,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after about 90 seconds of walking in dangerous rooms. Villages and rest areas are safe; approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after about 60 seconds of walking in any room, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1744,13 +1744,7 @@ function walkable(x, y) {
 }
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
 function updateWalkingEncounters(walkingSeconds) {
-  if (
-    mode !== "world" ||
-    dialogue ||
-    !$("overlay").hidden ||
-    state.flags.ending
-  )
-    return;
+  if (mode !== "world" || dialogue || !$("overlay").hidden) return;
   const room = currentRoom();
   const boss = activeObjects().find(
     (o) =>
@@ -1762,25 +1756,19 @@ function updateWalkingEncounters(walkingSeconds) {
     startBattle(boss[3], boss[3]);
     return;
   }
-  const safeRoom =
-    room.npcs.some((n) =>
-      ["mama", "moss", "pippy", "drift", "pebble"].includes(n[3]),
-    ) ||
-    room.id === "h1" ||
-    room.objects.some((o) => o[0] === "shrine" || o[0] === "boss") ||
-    room.region === 5;
-  if (safeRoom || walkingSeconds <= 0) return;
+  if (walkingSeconds <= 0) return;
   const elapsed = Number.isFinite(state.encounterWalking)
-    ? Math.max(0, Math.min(90, state.encounterWalking))
+    ? Math.max(0, Math.min(60, state.encounterWalking))
     : 0;
   state.encounterWalking = elapsed + walkingSeconds;
-  if (state.encounterWalking < 90) return;
+  if (state.encounterWalking < 60) return;
   const pool = room.enemies.length
     ? room.enemies.map((e) => e[0])
     : [
         ["snowcrab"],
         ["coconut", "reef"],
         ["gull"],
+        ["guard", "reef"],
         ["guard", "reef"],
         ["guard", "reef"],
       ][room.region];
