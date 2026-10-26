@@ -1762,14 +1762,29 @@ function updateWalkingEncounters(walkingSeconds) {
     startBattle(boss[3], boss[3]);
     return;
   }
-  if (!room.enemies.length || walkingSeconds <= 0) return;
+  const safeRoom =
+    room.npcs.some((n) =>
+      ["mama", "moss", "pippy", "drift", "pebble"].includes(n[3]),
+    ) ||
+    room.id === "h1" ||
+    room.objects.some((o) => o[0] === "shrine" || o[0] === "boss") ||
+    room.region === 5;
+  if (safeRoom || walkingSeconds <= 0) return;
   const elapsed = Number.isFinite(state.encounterWalking)
     ? Math.max(0, Math.min(90, state.encounterWalking))
     : 0;
   state.encounterWalking = elapsed + walkingSeconds;
   if (state.encounterWalking < 90) return;
-  const pool = room.enemies;
-  const enemy = pool[Math.floor(Math.random() * pool.length)][0];
+  const pool = room.enemies.length
+    ? room.enemies.map((e) => e[0])
+    : [
+        ["snowcrab"],
+        ["coconut", "reef"],
+        ["gull"],
+        ["guard", "reef"],
+        ["guard", "reef"],
+      ][room.region];
+  const enemy = pool[Math.floor(Math.random() * pool.length)];
   startBattle(enemy, "walking-encounter");
 }
 function updateWorld(dt) {

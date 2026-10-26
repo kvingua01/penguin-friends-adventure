@@ -47,7 +47,7 @@ Bosses have substantially increased health and damage. Below 65% health, they ch
 3. **Quiet Cove / Sea Gate:** Slippy is captured. Ask Pippy for help, sail to the gate, defeat Captain Undertow, and enter the kingdom.
 4. **Tidal Halls / Throne Room:** defeat the Pearl and Tide wardens, use both seals to enter the throne room, defeat King Orca, and free Slippy from the cage for the ending.
 
-Regular enemies appear automatically in battle after about 90 seconds of actual walking in dangerous rooms, with no visible countdown and no E prompt. Time carries across dangerous rooms; idle time, blocked movement, dialogue, menus, and safe rooms do not count. Each battle resets the walking count, including after escape or defeat. Regular encounters can repeat. Bosses begin when approached, with story requirements preserved. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
+Regular enemies appear automatically in battle after about 90 seconds of actual walking throughout wilderness rooms, including rooms without old monster placements, with no visible countdown and no E prompt. Time carries across dangerous rooms; idle time, blocked movement, dialogue, menus, and safe rooms do not count. Homes, villages, shops, rest-lantern rooms, boss chambers, and royal halls are safe from random encounters. Each battle resets the walking count, including after escape or defeat. Regular encounters can repeat. Bosses begin when approached, with story requirements preserved. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
 
 ## Validation
 
@@ -63,7 +63,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Six browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Seven browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 

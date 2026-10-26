@@ -420,3 +420,24 @@ test("walking encounters start after 90 seconds without E and pause in safe area
   expect(result.idleAfter).toBe(0);
   expect(result.visibleEnemies).toBe(0);
 });
+
+test("walking in a wilderness room without old monster placements still triggers combat", async ({
+  page,
+}) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    state.room = "h5";
+    state.map = 0;
+    state.x = 480;
+    state.y = 350;
+    state.encounterWalking = 89.9;
+    const oldPlacements = currentRoom().enemies.length;
+    keys.add("d");
+    for (let i = 0; i < 5 && mode === "world"; i++) updateWorld(0.04);
+    keys.clear();
+    return { oldPlacements, mode, enemy: battle?.type };
+  });
+  expect(result.oldPlacements).toBe(0);
+  expect(result.mode).toBe("battle");
+  expect(result.enemy).toBe("snowcrab");
+});
