@@ -36,9 +36,9 @@ There are 48 authored, connected rooms: 10 in Frostbell Island, 10 in Boonona Ba
 
 Scenery includes animated snow and sea ripples, jungle fireflies, crystal glows, footsteps, shaded character sprites, distinct enemy silhouettes, lantern lighting, bookshelves, huts, campfires, and original kingdom interiors. The minimap tracks rooms as you visit them; M opens the larger room journal.
 
-Enemies choose from different attacks, avoiding their last two moves. Twelve attack types include aimed volleys, falling icicles, fans, tidal walls, spirals, curling pearls, rings, crosscurrents, ricocheting shells, explosive stars, warning beams, and orca rushes. Gold warning lanes are safe until the attack fires.
+Monsters have 39 named signature attacks across disjoint, enemy-specific sets. Snowcap Crabs use pincers, drifting frost, and burrowing claws; Boonona Bandits use ballistic seeds, rolling coconuts, and vines; Reef Nibblers use schooling fish, closing jaws, and splitting bubbles; Storm Gulls use feathers, dives, and wind; Sentries use spears, shields, and searchlights. Each boss has its own additional set of mechanics. Later phases combine only that boss’s own attacks. Gold warning lanes are safe until the attack fires. The King’s Restless Edict requires actual heart movement: holding a direction against a wall does not count.
 
-Bosses have substantially increased health and damage. Below 65% health, they change patterns halfway through an attack turn. Below 30%, attack speed and damage increase, and additional beams mix into the patterns. The King has 650 health and ten available attack types. The parents remain a gentler tutorial, with ACT and FLEE preserved. Assist mode is still optional.
+Bosses have substantially increased health and damage. Below 65% health, they change patterns halfway through an attack turn. Below 30%, attack speed and damage increase using the earlier phase modifiers. The King has 650 health and five royal signature attacks. The parents remain a gentler tutorial, with ACT and FLEE preserved. Assist mode is still optional.
 
 ## Story route
 

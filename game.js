@@ -97,7 +97,6 @@ const enemies = {
     name: "Snowcap Crab",
     hp: 58,
     damage: 9,
-    pattern: "rain",
     color: "#a4cdd7",
     intro:
       "A crab raises its frosty mittens. It has mistaken the path for its living room.",
@@ -107,7 +106,6 @@ const enemies = {
     name: "Boonona Bandit",
     hp: 66,
     damage: 9,
-    pattern: "fan",
     color: "#be9870",
     intro:
       "A coconut creature rattles indignantly. Apparently you interrupted its nap.",
@@ -117,7 +115,6 @@ const enemies = {
     name: "Reef Nibbler",
     hp: 70,
     damage: 10,
-    pattern: "wave",
     color: "#95b7bc",
     intro: "Something with too many teeth wants to discuss the right of way.",
     xp: 1,
@@ -126,7 +123,6 @@ const enemies = {
     name: "Storm Gull",
     hp: 68,
     damage: 10,
-    pattern: "aim",
     color: "#d4d1c4",
     intro: "A storm gull swoops down. It is extremely confident about this.",
     xp: 1,
@@ -135,7 +131,6 @@ const enemies = {
     name: "Orca Sentry",
     hp: 84,
     damage: 11,
-    pattern: "fan",
     color: "#8fabbf",
     intro: "A sentry lowers its spear. You stand a little taller.",
     xp: 2,
@@ -144,7 +139,6 @@ const enemies = {
     name: "Mama & Papa",
     hp: 112,
     damage: 7,
-    pattern: "rain",
     color: "#b4c6dc",
     boss: true,
     parents: true,
@@ -156,7 +150,6 @@ const enemies = {
     name: "Baby Orca",
     hp: 142,
     damage: 11,
-    pattern: "wave",
     color: "#91b6c6",
     boss: true,
     intro: "A baby orca splashes into the shallows. “That’s MY island lunch!”",
@@ -166,7 +159,6 @@ const enemies = {
     name: "Captain Undertow",
     hp: 150,
     damage: 11,
-    pattern: "aim",
     color: "#aaafd4",
     boss: true,
     intro:
@@ -177,7 +169,6 @@ const enemies = {
     name: "Warden of the Pearl",
     hp: 120,
     damage: 11,
-    pattern: "spiral",
     color: "#b8b8d7",
     boss: true,
     intro:
@@ -188,7 +179,6 @@ const enemies = {
     name: "Warden of the Tide",
     hp: 128,
     damage: 11,
-    pattern: "rain",
     color: "#84b8ba",
     boss: true,
     intro: "The second warden turns the tide against you.",
@@ -198,7 +188,6 @@ const enemies = {
     name: "King Orca of the Sea",
     hp: 245,
     damage: 13,
-    pattern: "king",
     color: "#adbbd8",
     boss: true,
     intro:
@@ -1238,6 +1227,7 @@ function beginDodge() {
   b.spawnTime = 0;
   b.turn++;
   b.volley = 0;
+  b.extraRayUsed = false;
   b.bullets = [];
   b.hazards = [];
   b.phaseLevel =
@@ -1344,92 +1334,231 @@ function bullet(x, y, vx, vy, r = 6, kind = "orb", extra = {}) {
   battle.bullets.push({ x, y, vx, vy, r, kind, age: 0, ...extra });
 }
 const arena = { x: 248, y: 307, w: 464, h: 226 };
-const ATTACKS = {
-  rain: {
-    name: "Falling Fangs",
-    hint: "Follow the gap between the icicles.",
-    interval: 0.48,
-  },
-  fan: {
-    name: "Riptide Fans",
-    hint: "Thread between the spreading volleys.",
-    interval: 0.7,
-  },
-  aim: {
-    name: "Hunter’s Volley",
-    hint: "Keep moving; shots aim where you were.",
-    interval: 0.66,
-  },
-  wave: {
-    name: "Tidal Walls",
-    hint: "Find the moving opening in each wall.",
-    interval: 1.05,
-  },
-  spiral: {
-    name: "Pearl Spiral",
-    hint: "Circle around the curling stream.",
-    interval: 0.42,
-  },
-  ring: {
-    name: "Shockwave",
-    hint: "Stay away from the glowing source, then pass between rings.",
-    interval: 1.25,
-  },
-  cross: {
-    name: "Crosscurrent",
-    hint: "Watch both sides, not just the top.",
-    interval: 0.88,
-  },
-  laser: {
-    name: "Crownlight",
-    hint: "Gold lanes warn you before the beams fire.",
-    interval: 1.05,
-  },
-  bounce: {
-    name: "Ricochet Reef",
-    hint: "These shells bounce off the battle walls.",
-    interval: 0.69,
-  },
-  charge: {
-    name: "Orca Rush",
-    hint: "Leave the marked lane before the rush.",
-    interval: 1.18,
-  },
-  orbit: {
-    name: "Undertow Waltz",
-    hint: "Sweeping pearls curve as they fall.",
-    interval: 0.55,
-  },
-  mines: {
-    name: "Deepsea Stars",
-    hint: "Glowing stars burst outward. Give them room.",
-    interval: 1.35,
-  },
-};
-const movePools = {
-  snowcrab: ["rain", "bounce", "cross"],
-  coconut: ["fan", "orbit", "mines"],
-  reef: ["wave", "ring", "bounce"],
-  gull: ["aim", "cross", "charge"],
-  guard: ["fan", "laser", "cross", "aim"],
-  parents: ["rain", "fan", "wave"],
-  baby: ["wave", "charge", "ring", "bounce", "mines"],
-  gate: ["aim", "laser", "cross", "charge", "fan"],
-  key1: ["spiral", "orbit", "ring", "laser", "mines"],
-  key2: ["rain", "wave", "bounce", "cross", "charge"],
-  king: [
-    "laser",
-    "spiral",
-    "charge",
-    "mines",
-    "wave",
-    "ring",
-    "cross",
-    "orbit",
-    "aim",
-    "bounce",
-  ],
-};
+const ATTACKS = Object.fromEntries(
+  [
+    ["snowcrab.claws", "Pincer Trap", "Leave the marked claw lanes.", 1.05],
+    [
+      "snowcrab.snow",
+      "Frost Flakes",
+      "Find the opening between drifting snow shards.",
+      0.55,
+    ],
+    [
+      "snowcrab.burrow",
+      "Under the Ice",
+      "Watch the cracking circles before the claws burst.",
+      1.15,
+    ],
+    [
+      "coconut.seeds",
+      "Seed Scatter",
+      "Seeds arc downward. Watch their landing paths.",
+      0.68,
+    ],
+    [
+      "coconut.roll",
+      "Rolling Lunch",
+      "Coconuts ricochet along the lower lanes.",
+      0.9,
+    ],
+    [
+      "coconut.vines",
+      "Hungry Vines",
+      "Leave the sprouting green columns.",
+      1.1,
+    ],
+    ["reef.school", "School Rush", "Fish weave from alternating sides.", 0.72],
+    [
+      "reef.jaws",
+      "Closing Jaws",
+      "Follow the moving opening between the jaws.",
+      1.3,
+    ],
+    [
+      "reef.bubbles",
+      "Bubble Trouble",
+      "Rising bubbles split into sideways nibbles.",
+      0.8,
+    ],
+    [
+      "gull.feathers",
+      "Featherfall",
+      "Feathers drift diagonally through the box.",
+      0.48,
+    ],
+    [
+      "gull.dive",
+      "Shadow Dive",
+      "Leave the marked shadow before the gull dives.",
+      1.12,
+    ],
+    [
+      "gull.gust",
+      "Storm Wings",
+      "The wind pushes you. Steer against it.",
+      0.72,
+    ],
+    [
+      "guard.spears",
+      "Sentry Spears",
+      "Four walls, four spear tips. Watch your flanks.",
+      0.85,
+    ],
+    [
+      "guard.shield",
+      "Shield March",
+      "Move into the gap in the shield formation.",
+      1.05,
+    ],
+    [
+      "guard.watch",
+      "Searchlight",
+      "Stay out of the sentry’s marked sight line.",
+      1.05,
+    ],
+    [
+      "parents.snow",
+      "Snowball Practice",
+      "Dodge the soft, slow snowballs.",
+      0.8,
+    ],
+    [
+      "parents.lesson",
+      "Follow the Safe Lane",
+      "Find the wide opening Mama leaves for you.",
+      1.2,
+    ],
+    [
+      "parents.hugs",
+      "Overprotective Hugs",
+      "Slip between Papa’s widening snow rings.",
+      1.25,
+    ],
+    ["baby.breach", "Little Breach", "Move out of the splash lane.", 1.16],
+    [
+      "baby.splash",
+      "Playful Splashes",
+      "Water drops rise, then fall back down.",
+      0.75,
+    ],
+    ["baby.spout", "Baby Blowhole", "The water jets rise from below.", 0.9],
+    [
+      "baby.tail",
+      "Tail Tantrum",
+      "Thread the wobbly gaps in the tail waves.",
+      1.05,
+    ],
+    [
+      "gate.harpoon",
+      "Returning Harpoon",
+      "Harpoons turn around. Don’t follow them.",
+      0.85,
+    ],
+    [
+      "gate.march",
+      "Captain’s Formation",
+      "Find the open column between the spears.",
+      1.03,
+    ],
+    [
+      "gate.anchor",
+      "Depth Anchors",
+      "Anchors burst into six heavy fragments.",
+      1.2,
+    ],
+    [
+      "gate.cross",
+      "Crossed Orders",
+      "Diagonal spears cross in the center.",
+      0.9,
+    ],
+    [
+      "key1.orbit",
+      "Pearl Satellites",
+      "Pearls orbit a slowly falling center.",
+      0.72,
+    ],
+    [
+      "key1.prism",
+      "Prism Reflections",
+      "Watch the paired columns of light.",
+      1.1,
+    ],
+    [
+      "key1.chain",
+      "Pearl Necklace",
+      "Strings of pearls curl across the box.",
+      0.68,
+    ],
+    [
+      "key1.nova",
+      "Shattered Pearl",
+      "A turning pearl opens into star rays.",
+      1.15,
+    ],
+    [
+      "key2.sluice",
+      "Open the Floodgates",
+      "Find the gap in the falling columns.",
+      0.7,
+    ],
+    [
+      "key2.whirl",
+      "Royal Whirlpool",
+      "The current pulls while water circles you.",
+      0.64,
+    ],
+    [
+      "key2.undertow",
+      "Reverse Tide",
+      "Find the opening in the rising tide.",
+      1.05,
+    ],
+    [
+      "key2.surge",
+      "High Water",
+      "Keep moving out of the rising flood lanes.",
+      1.3,
+    ],
+    [
+      "king.crown",
+      "Crown of the Deep",
+      "Gold lanes mark the King’s cross of light.",
+      1.12,
+    ],
+    [
+      "king.trident",
+      "Three-Pronged Promise",
+      "Tridents arrive in aimed triples.",
+      0.8,
+    ],
+    [
+      "king.decree",
+      "Restless Edict",
+      "Keep moving: golden royal seals only hurt if you stand still.",
+      0.72,
+    ],
+    [
+      "king.eclipse",
+      "The Lonely Crown",
+      "Give the dark stars room before they burst.",
+      1.05,
+    ],
+    [
+      "king.storm",
+      "The King’s Last Storm",
+      "Ride through the shifting gap and watch for crownlight.",
+      1.2,
+    ],
+  ].map(([id, name, hint, interval]) => [id, { name, hint, interval }]),
+);
+const movePools = Object.fromEntries(
+  Object.keys(enemies).map((type) => [
+    type,
+    Object.keys(ATTACKS).filter((id) => id.startsWith(type + ".")),
+  ]),
+);
+
 function chooseAttack(b) {
   const pool = movePools[b.type];
   let choices = pool.filter((p) => !b.recent.includes(p));
@@ -1443,7 +1572,7 @@ function chooseAttack(b) {
     pool.find((p) => p !== selected && p !== b.recent[0]) || pool[0];
 }
 function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
-  battle.hazards.push({
+  const item = {
     kind,
     x,
     y,
@@ -1453,145 +1582,454 @@ function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
     warning: warning * (state.assist ? 1.35 : 1),
     duration,
     fired: false,
-  });
+  };
+  battle.hazards.push(item);
+  return item;
+}
+function claimExtraRay() {
+  if (battle.extraRayUsed || battle.phaseTime < 3.2) return false;
+  battle.extraRayUsed = true;
+  return true;
 }
 function spawnPattern(pattern = battle.attack) {
   const b = battle,
     a = arena,
     t = b.phaseTime,
-    level = b.phaseLevel,
+    n = b.volley,
+    rate = state.assist ? 0.7 : 1,
     speed =
-      (b.boss ? 145 : 113) *
-      (1 + (level - 1) * 0.11) *
-      (state.assist ? 0.7 : 1),
-    left = a.x,
-    top = a.y;
-  if (pattern === "rain") {
-    const safe = Math.floor((t * 0.8 + b.turn * 0.9) % 6);
-    for (let i = 0; i < 7; i++) {
-      if (Math.abs(i - safe) <= 0.7) continue;
-      bullet(
-        left + 22 + i * 68,
-        top - 12,
-        Math.sin(t + i) * 13,
-        speed,
-        5,
-        "shard",
-      );
+      (b.parents ? 76 : b.boss ? 145 : 113) *
+      (1 + (b.phaseLevel - 1) * 0.11) *
+      rate,
+    L = a.x,
+    T = a.y,
+    R = L + a.w,
+    B = T + a.h;
+  const aim = (x, y, count = 1, spread = 0.18, kind = "shard", extra = {}) => {
+    const angle = Math.atan2(b.heart.y - y, b.heart.x - x);
+    for (let i = 0; i < count; i++) {
+      const v = angle + (i - (count - 1) / 2) * spread;
+      bullet(x, y, Math.cos(v) * speed, Math.sin(v) * speed, 5, kind, extra);
     }
-  } else if (pattern === "fan") {
-    const x = 480 + Math.sin(t * 1.7) * 140;
-    for (let i = -3; i <= 3; i++)
+  };
+  const burst = (x, y, count = 8, s = 0.9, kind = "star") => {
+    const h = hazard("burst", x, y, 14, 0, 0.9, 0.08);
+    h.count = count;
+    h.speed = speed * s;
+    h.projectileKind = kind;
+  };
+  switch (pattern) {
+    case "snowcrab.claws": {
+      const width = 22 + ((n * 61) % (a.w / 2 - 37));
+      hazard("beam", L + width, T, 29, a.h, 0.9, 0.3);
+      hazard("beam", R - width, T, 29, a.h, 0.9, 0.3);
+      break;
+    }
+    case "snowcrab.snow": {
+      const gap = n % 6;
+      for (let i = 0; i < 7; i++)
+        if (i !== gap)
+          bullet(
+            L + 25 + i * 66,
+            T - 10,
+            (i % 2 ? 1 : -1) * 15,
+            speed,
+            5,
+            "shard",
+            { curve: 15, phase: i },
+          );
+      break;
+    }
+    case "snowcrab.burrow":
+      burst(L + 40 + ((n * 97) % (a.w - 80)), B - 20, 5, 0.8, "claw");
+      break;
+    case "coconut.seeds": {
+      for (let i = 0; i < 4; i++)
+        bullet(
+          L + 22 + ((n * 83 + i * 107) % (a.w - 44)),
+          T + 70,
+          (i - 1.5) * 52 * rate,
+          -65 + i * 10,
+          6,
+          "seed",
+          { gravity: 110 * rate },
+        );
+      break;
+    }
+    case "coconut.roll":
       bullet(
-        x,
-        top - 9,
-        Math.sin(i * 0.25 + t * 0.08) * speed,
-        Math.cos(i * 0.25 + t * 0.08) * speed,
-        5,
-        "orb",
+        n % 2 ? L + 12 : R - 12,
+        T + 30 + ((n * 53) % (a.h - 60)),
+        (n % 2 ? 1 : -1) * speed,
+        n % 2 ? -35 : 35,
+        10,
+        "shell",
+        { bounces: 0, gravity: 45 },
       );
-  } else if (pattern === "aim") {
-    const side = b.volley % 2 === 0,
-      x = side ? left - 9 : left + a.w + 9,
-      y = top + 20 + ((b.volley * 53) % (a.h - 40)),
-      angle = Math.atan2(b.heart.y - y, b.heart.x - x);
-    for (let i = -1; i <= 1; i++)
-      bullet(
-        x,
-        y,
-        Math.cos(angle + i * 0.2) * speed,
-        Math.sin(angle + i * 0.2) * speed,
-        5,
-        "shard",
+      break;
+    case "coconut.vines":
+      hazard("beam", L + 35 + ((n * 103) % (a.w - 70)), T, 27, a.h, 1.1, 0.4);
+      break;
+    case "reef.school": {
+      for (let i = 0; i < 4; i++)
+        bullet(
+          n % 2 ? L - 10 : R + 10,
+          T + 30 + i * 49,
+          (n % 2 ? 1 : -1) * speed,
+          0,
+          7,
+          "fish",
+          { swayY: 42, phase: i * 0.6 },
+        );
+      break;
+    }
+    case "reef.jaws": {
+      const opening = T + 50 + ((n * 37) % (a.h - 100));
+      const upper = Math.max(8, opening - T - 36),
+        lower = Math.min(B - 8, opening + 36);
+      hazard("rush", L, T, a.w, upper, 0.85, 0.4);
+      hazard("rush", L, lower, a.w, B - lower, 0.85, 0.4);
+      aim(n % 2 ? L - 10 : R + 10, opening, 2, 0.18, "tooth");
+      break;
+    }
+    case "reef.bubbles": {
+      for (let i = 0; i < 3; i++)
+        bullet(
+          L + 50 + ((n * 67 + i * 135) % (a.w - 90)),
+          B + 9,
+          0,
+          -speed * 0.75,
+          9,
+          "bubble",
+          { splitAt: 1.05 },
+        );
+      break;
+    }
+    case "gull.feathers": {
+      for (let i = 0; i < 4; i++)
+        bullet(
+          L + 20 + ((n * 83 + i * 97) % (a.w - 40)),
+          T - 10,
+          (n % 2 ? 1 : -1) * 50,
+          speed * 0.85,
+          6,
+          "feather",
+          { curve: 22, phase: i },
+        );
+      break;
+    }
+    case "gull.dive":
+      hazard(
+        "rush",
+        L,
+        Math.max(T + 7, Math.min(B - 34, b.heart.y - 12)),
+        a.w,
+        24,
+        0.95,
+        0.27,
       );
-  } else if (pattern === "wave") {
-    const fromLeft = b.volley % 2 === 0,
-      gap = top + 40 + ((Math.sin(t * 1.5) + 1) / 2) * (a.h - 80);
-    for (let y = top + 10; y < top + a.h; y += 23) {
-      if (Math.abs(y - gap) < 34) continue;
-      bullet(
-        fromLeft ? left - 8 : left + a.w + 8,
-        y,
-        (fromLeft ? 1 : -1) * speed * 0.9,
-        0,
+      break;
+    case "gull.gust": {
+      for (let i = 0; i < 3; i++)
+        bullet(
+          n % 2 ? L - 10 : R + 10,
+          T + 18 + ((n * 47 + i * 71) % (a.h - 36)),
+          (n % 2 ? 1 : -1) * speed,
+          12,
+          5,
+          "feather",
+        );
+      break;
+    }
+    case "guard.spears": {
+      const from = [
+        [L - 9, T + 30],
+        [R + 9, B - 30],
+        [L + 70, T - 9],
+        [R - 70, B + 9],
+      ][n % 4];
+      aim(...from, 2, 0.15, "spear");
+      break;
+    }
+    case "guard.shield": {
+      const gap = T + 40 + ((n * 47) % (a.h - 80));
+      for (let y = T + 15; y < B; y += 26)
+        if (Math.abs(y - gap) > 32)
+          bullet(
+            n % 2 ? L - 9 : R + 9,
+            y,
+            (n % 2 ? 1 : -1) * speed,
+            0,
+            9,
+            "shield",
+          );
+      break;
+    }
+    case "guard.watch":
+      hazard("beam", L + 30 + ((n * 109) % (a.w - 60)), T, 19, a.h, 0.85, 0.38);
+      break;
+    case "parents.snow": {
+      for (let i = 0; i < 3; i++)
+        bullet(
+          L + 50 + ((n * 57 + i * 130) % (a.w - 90)),
+          T - 8,
+          Math.sin(n + i) * 20,
+          speed * 0.8,
+          9,
+          "snow",
+          { gravity: 18 },
+        );
+      break;
+    }
+    case "parents.lesson": {
+      const gap = T + 60 + Math.sin(t) * 45;
+      for (let y = T + 15; y < B; y += 31)
+        if (Math.abs(y - gap) > 52) bullet(R + 9, y, -speed, 0, 6, "snow");
+      break;
+    }
+    case "parents.hugs":
+      burst(480, T - 10, 9, 0.65, "snow");
+      break;
+    case "baby.breach": {
+      hazard(
+        "rush",
+        L,
+        Math.max(T + 10, Math.min(B - 40, b.heart.y - 14)),
+        a.w,
+        28,
+        1,
+        0.27,
+      );
+      if (b.phaseLevel > 1)
+        hazard("rush", L, T + (n % 2 ? 35 : 145), a.w, 18, 1.35, 0.2);
+      break;
+    }
+    case "baby.splash": {
+      for (let i = 0; i < 5; i++)
+        bullet(
+          L + 55 + ((n * 113) % (a.w - 110)),
+          T + 55,
+          (i - 2) * 40 * rate,
+          -65,
+          7,
+          "water",
+          { gravity: 105 * rate },
+        );
+      break;
+    }
+    case "baby.spout": {
+      for (let i = -2; i <= 2; i++)
+        bullet(
+          L + 25 + ((n * 79) % (a.w - 50)),
+          B + 8,
+          i * 25,
+          -speed,
+          5,
+          "water",
+          { curve: 15, phase: i },
+        );
+      break;
+    }
+    case "baby.tail": {
+      const gap = T + 50 + ((Math.sin(n * 1.3) + 1) * (a.h - 100)) / 2;
+      for (let y = T + 14; y < B; y += 25)
+        if (Math.abs(y - gap) > 35)
+          bullet(
+            n % 2 ? L - 9 : R + 9,
+            y,
+            (n % 2 ? 1 : -1) * speed,
+            0,
+            6,
+            "water",
+            { swayY: 18 },
+          );
+      break;
+    }
+    case "gate.harpoon":
+      aim(
+        n % 2 ? L - 10 : R + 10,
+        T + 30 + ((n * 53) % (a.h - 60)),
+        2,
+        0.14,
+        "spear",
+        { returnAt: 2.5 },
+      );
+      break;
+    case "gate.march": {
+      const gap = L + 60 + ((n * 79) % (a.w - 120));
+      for (let x = L + 20; x < R; x += 32)
+        if (Math.abs(x - gap) > 39) bullet(x, T - 9, 0, speed, 6, "spear");
+      break;
+    }
+    case "gate.anchor":
+      burst(
+        L + 50 + ((n * 107) % (a.w - 100)),
+        T + 55 + ((n * 61) % (a.h - 100)),
         6,
-        "wave",
+        0.85,
+        "anchor",
       );
+      break;
+    case "gate.cross": {
+      for (const [x, y, sx, sy] of [
+        [L, T, 1, 1],
+        [R, T, -1, 1],
+        [L, B, 1, -1],
+        [R, B, -1, -1],
+      ])
+        bullet(x, y, sx * speed * 0.9, sy * speed * 0.435, 6, "spear");
+      break;
     }
-  } else if (pattern === "spiral" || pattern === "orbit") {
-    for (let i = 0; i < (pattern === "spiral" ? 5 : 3); i++) {
-      const angle = t * 2.2 + i * Math.PI * 0.39;
-      bullet(
-        480 + Math.sin(t) * 110,
-        top - 10,
-        Math.cos(angle) * speed * 0.6,
-        Math.abs(Math.sin(angle)) * speed * 0.7 + 55,
-        5,
-        pattern === "orbit" ? "pearl" : "orb",
-        { curve: pattern === "orbit" ? 65 : 0, phase: i },
-      );
+    case "key1.orbit": {
+      const cx = L + 80 + ((n * 89) % (a.w - 160));
+      for (let i = 0; i < 5; i++)
+        bullet(cx, T + 15, 0, 0, 6, "pearl", {
+          orbit: {
+            x: cx,
+            y: T + 15,
+            angle: (i * Math.PI * 2) / 5,
+            r: 22,
+            speed: 1.8 * rate,
+            fall: 82 * rate,
+          },
+        });
+      break;
     }
-  } else if (pattern === "ring" || pattern === "mines") {
-    const x = left + 65 + Math.random() * (a.w - 130),
-      y = pattern === "ring" ? top + 45 : top + 35 + Math.random() * (a.h - 70);
-    hazard(
-      "burst",
-      x,
-      y,
-      pattern === "ring" ? 10 : 15,
-      0,
-      pattern === "ring" ? 0.7 : 1.1,
-      0.08,
-    );
-  } else if (pattern === "cross") {
-    const gap = top + 40 + ((b.volley * 47) % (a.h - 80));
-    for (let i = 0; i < 4; i++) {
-      const y = top + 22 + i * 58;
-      if (Math.abs(y - gap) > 30) {
-        bullet(left - 9, y, speed, 22, 5, "shard");
-        bullet(left + a.w + 9, top + a.h - (y - top), -speed, -22, 5, "shard");
+    case "key1.prism": {
+      const offset = 35 + ((n * 67) % (a.w / 2 - 60));
+      hazard("beam", L + offset, T, 18, a.h, 0.95, 0.35);
+      hazard("beam", R - offset, T, 18, a.h, 1.15, 0.25);
+      break;
+    }
+    case "key1.chain": {
+      for (let i = 0; i < 5; i++)
+        bullet(
+          n % 2 ? L - 10 : R + 10,
+          T + 35 + i * 37,
+          (n % 2 ? 1 : -1) * speed * 0.8,
+          0,
+          6,
+          "pearl",
+          { swayY: 55, phase: i * 0.55 },
+        );
+      break;
+    }
+    case "key1.nova": {
+      for (let i = 0; i < 7; i++) {
+        const angle = (i * Math.PI) / 7 + t * 0.35;
+        bullet(
+          480,
+          T - 8,
+          Math.cos(angle) * speed * 0.8,
+          Math.abs(Math.sin(angle)) * speed,
+          5,
+          "pearl",
+        );
       }
+      break;
     }
-  } else if (pattern === "laser") {
-    const x = left + 25 + ((b.volley * 97) % (a.w - 50));
-    hazard("beam", x, top, 22, a.h, 0.85, 0.35);
-    if (level >= 2)
-      hazard(
-        "beam",
-        left + 25 + ((b.volley * 97 + 198) % (a.w - 50)),
-        top,
-        18,
-        a.h,
-        1.05,
-        0.25,
+    case "key2.sluice": {
+      const gap = L + 60 + ((n * 97) % (a.w - 120));
+      for (let x = L + 18; x < R; x += 29)
+        if (Math.abs(x - gap) > 37)
+          bullet(x, T - 8, Math.sin(n) * 15, speed, 5, "water");
+      break;
+    }
+    case "key2.whirl": {
+      for (let i = 0; i < 4; i++)
+        bullet(
+          480,
+          T - 9,
+          Math.cos(t * 2 + i) * speed * 0.65,
+          75 * rate,
+          6,
+          "water",
+          { curve: 40, phase: i },
+        );
+      break;
+    }
+    case "key2.undertow": {
+      const gap = L + 70 + ((Math.sin(t) + 1) * (a.w - 140)) / 2;
+      for (let x = L + 15; x < R; x += 27)
+        if (Math.abs(x - gap) > 37) bullet(x, B + 9, 0, -speed, 6, "wave");
+      break;
+    }
+    case "key2.surge": {
+      hazard("rush", L, T + ((n * 59) % (a.h - 46)), a.w, 46, 0.95, 0.4);
+      for (let i = 0; i < 3; i++)
+        bullet(L + 60 + i * 160, T - 8, (i - 1) * 15, speed * 0.8, 6, "water");
+      break;
+    }
+    case "king.crown": {
+      const x = L + 40 + ((n * 101) % (a.w - 80)),
+        y = T + 25 + ((n * 61) % (a.h - 50));
+      hazard("beam", x, T, 21, a.h, 0.95, 0.3);
+      hazard("rush", L, y, a.w, 20, 1.05, 0.32);
+      break;
+    }
+    case "king.trident": {
+      aim(
+        n % 2 ? L - 12 : R + 12,
+        T + 40 + ((n * 59) % (a.h - 80)),
+        3,
+        0.19,
+        "royalSpear",
       );
-  } else if (pattern === "charge") {
-    const y = Math.max(top + 14, Math.min(top + a.h - 40, b.heart.y - 13));
-    hazard("rush", left, y, a.w, 25, 0.95, 0.3);
-    if (level >= 3 && b.volley % 2 === 0)
-      hazard(
-        "beam",
-        left + 60 + ((b.volley * 71) % (a.w - 120)),
-        top,
-        18,
-        a.h,
-        1.25,
-        0.25,
+      if (b.phaseLevel === 3) aim(480, T - 12, 1, 0.1, "royalSpear");
+      break;
+    }
+    case "king.decree": {
+      for (let i = 0; i < 4; i++)
+        bullet(
+          L + 40 + ((n * 77 + i * 111) % (a.w - 80)),
+          T - 10,
+          Math.sin(i) * 20,
+          speed * 0.8,
+          8,
+          "seal",
+          { rule: "still" },
+        );
+      break;
+    }
+    case "king.eclipse":
+      burst(
+        L + 60 + ((n * 113) % (a.w - 120)),
+        T + 45 + ((n * 53) % (a.h - 90)),
+        11,
+        0.9,
+        "darkStar",
       );
-  } else if (pattern === "bounce") {
-    const x = left + 35 + ((b.volley * 97) % (a.w - 70));
-    bullet(
-      x,
-      top + 9,
-      (b.volley % 2 ? 1 : -1) * speed * 0.65,
-      speed * 0.8,
-      6,
-      "shell",
-      { bounces: 0 },
-    );
+      break;
+    case "king.storm": {
+      const gap = T + 48 + ((Math.sin(n * 1.7) + 1) * (a.h - 96)) / 2;
+      for (let y = T + 13; y < B; y += 23)
+        if (Math.abs(y - gap) > 32)
+          bullet(
+            n % 2 ? L - 10 : R + 10,
+            y,
+            (n % 2 ? 1 : -1) * speed,
+            0,
+            6,
+            "royalWater",
+          );
+      if (n % 4 === 0 && claimExtraRay())
+        hazard(
+          "beam",
+          L + 40 + ((n * 131) % (a.w - 80)),
+          T,
+          16,
+          a.h,
+          1.15,
+          0.2,
+        );
+      break;
+    }
+    default:
+      throw Error("Unknown attack " + pattern);
   }
   b.volley++;
 }
+
 function hitHeart() {
   const b = battle;
   if (b.invulnerable > 0) return;
@@ -1622,8 +2060,21 @@ function updateBattle(dt) {
   const attackDt = dt * difficultySpeed();
   b.spawnTime += attackDt;
   b.invulnerable = Math.max(0, b.invulnerable - dt);
-  let [dx, dy] = direction();
+  const [dx, dy] = direction();
+  const previousHeart = { x: b.heart.x, y: b.heart.y };
   const speed = (state.assist ? 215 : 193) * difficultySpeed();
+  const pattern =
+    b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
+      ? b.secondary
+      : b.attack;
+  if (pattern === "gull.gust")
+    b.heart.x +=
+      Math.sin(b.phaseTime * 1.5) * 50 * attackDt * (state.assist ? 0.6 : 1);
+  if (pattern === "key2.whirl") {
+    b.heart.x += Math.sin(b.phaseTime * 2) * 30 * attackDt;
+    b.heart.y += Math.cos(b.phaseTime * 2) * 18 * attackDt;
+  }
+
   b.heart.x = Math.max(
     arena.x + 8,
     Math.min(arena.x + arena.w - 8, b.heart.x + dx * speed * dt),
@@ -1632,14 +2083,12 @@ function updateBattle(dt) {
     arena.y + 8,
     Math.min(arena.y + arena.h - 8, b.heart.y + dy * speed * dt),
   );
-  const pattern =
-      b.phaseLevel >= 2 && b.phaseTime > b.duration * 0.52
-        ? b.secondary
-        : b.attack,
-    interval =
-      ATTACKS[pattern].interval *
-      (state.assist ? 1.35 : 1) *
-      (b.phaseLevel === 3 ? 0.87 : 1);
+  const heartMoved =
+    Math.hypot(b.heart.x - previousHeart.x, b.heart.y - previousHeart.y) > 0.01;
+  const interval =
+    ATTACKS[pattern].interval *
+    (state.assist ? 1.35 : 1) *
+    (b.phaseLevel === 3 ? 0.87 : 1);
   if (
     b.phaseTime > 0.8 &&
     b.spawnTime > interval &&
@@ -1647,16 +2096,15 @@ function updateBattle(dt) {
   ) {
     b.spawnTime = 0;
     spawnPattern(pattern);
-    if (b.phaseLevel === 3 && b.volley % 4 === 0 && pattern !== "laser")
-      spawnPattern("laser");
   }
+
   for (const h of b.hazards) {
     h.age += attackDt;
     if (h.age >= h.warning && !h.fired) {
       h.fired = true;
       if (h.kind === "burst") {
-        const count = b.phaseLevel === 3 ? 12 : 10,
-          speed = state.assist ? 79 : 122;
+        const count = h.count || (b.phaseLevel === 3 ? 12 : 10),
+          speed = h.speed || (state.assist ? 79 : 122);
         for (let i = 0; i < count; i++) {
           const angle = (i * Math.PI * 2) / count + 0.15 * b.turn;
           bullet(
@@ -1665,7 +2113,7 @@ function updateBattle(dt) {
             Math.cos(angle) * speed,
             Math.sin(angle) * speed,
             5,
-            "star",
+            h.projectileKind || "star",
           );
         }
       }
@@ -1685,10 +2133,34 @@ function updateBattle(dt) {
   b.hazards = b.hazards.filter((h) => h.age < h.warning + h.duration);
   for (const p of b.bullets) {
     p.age += attackDt;
-    p.x +=
-      (p.vx + (p.curve ? Math.sin(p.age * 4 + (p.phase || 0)) * p.curve : 0)) *
-      attackDt;
-    p.y += p.vy * attackDt;
+    if (p.gravity) p.vy += p.gravity * attackDt;
+    if (p.returnAt && !p.returned && p.age > p.returnAt) {
+      p.vx = -p.vx;
+      p.vy = -p.vy;
+      p.returned = true;
+    }
+    if (p.splitAt && !p.splitDone && p.age > p.splitAt) {
+      p.splitDone = true;
+      bullet(p.x, p.y, -95, 0, 5, "fish");
+      bullet(p.x, p.y, 95, 0, 5, "fish");
+      p.age = 20;
+    }
+    if (p.orbit) {
+      p.orbit.angle += p.orbit.speed * attackDt;
+      p.orbit.y += p.orbit.fall * attackDt;
+      const radius = p.orbit.r + p.age * 27;
+      p.x = p.orbit.x + Math.cos(p.orbit.angle) * radius;
+      p.y = p.orbit.y + Math.sin(p.orbit.angle) * radius;
+    } else
+      p.x +=
+        (p.vx +
+          (p.curve ? Math.sin(p.age * 4 + (p.phase || 0)) * p.curve : 0)) *
+        attackDt;
+    if (!p.orbit)
+      p.y +=
+        (p.vy +
+          (p.swayY ? Math.cos(p.age * 3 + (p.phase || 0)) * p.swayY : 0)) *
+        attackDt;
     if (p.kind === "shell" && p.bounces < 3) {
       if (p.x < arena.x + p.r || p.x > arena.x + arena.w - p.r) {
         p.vx = -p.vx;
@@ -1710,7 +2182,8 @@ function updateBattle(dt) {
       p.x < arena.x + arena.w &&
       p.y > arena.y &&
       p.y < arena.y + arena.h &&
-      Math.hypot(p.x - b.heart.x, p.y - b.heart.y) < p.r + 4
+      Math.hypot(p.x - b.heart.x, p.y - b.heart.y) < p.r + 4 &&
+      (p.rule !== "still" || !heartMoved)
     ) {
       hitHeart();
       if (b.phase === "result") return;
@@ -1732,7 +2205,7 @@ function updateBattle(dt) {
       b.parents && b.acts >= 2
         ? "Your parents believe in you. FLEE is unlocked."
         : b.phaseLevel === 3
-          ? "The boss is desperate. The next attack will combine patterns."
+          ? "The boss is tiring. Stay focused on the next pattern."
           : b.phaseLevel === 2
             ? "A new phase begins. Watch for the attack to change halfway through."
             : "You catch your breath. Choose your next move.";
@@ -2811,11 +3284,60 @@ function drawBattle() {
       }
     }
     for (const p of b.bullets) {
-      if (p.kind === "shell") {
+      if (["seed", "snow", "bubble", "water", "royalWater"].includes(p.kind)) {
+        const c =
+          p.kind === "seed"
+            ? "#bd9768"
+            : p.kind === "snow"
+              ? "#e9f3ed"
+              : p.kind === "royalWater"
+                ? "#b9a3d8"
+                : "#a8d3e0";
+        ellipse(p.x, p.y, p.r, p.r, c);
+        ellipse(
+          p.x - 2,
+          p.y - 2,
+          Math.max(2, p.r - 4),
+          Math.max(2, p.r - 4),
+          "#eff8e1",
+        );
+      } else if (p.kind === "fish") {
+        rect(p.x - 7, p.y - 3, 14, 7, "#9ebdc7");
+        rect(p.x - 11, p.y - 6, 4, 11, "#c3d6ce");
+        rect(p.x + 4, p.y - 2, 2, 2, "#28475d");
+      } else if (p.kind === "feather") {
+        rect(p.x - 2, p.y - 9, 4, 18, "#dfe6d5");
+        rect(p.x - 5, p.y - 5, 9, 8, "#a9c5cd");
+      } else if (["spear", "royalSpear", "tooth", "claw"].includes(p.kind)) {
+        rect(
+          p.x - 2,
+          p.y - 10,
+          4,
+          20,
+          p.kind === "royalSpear" ? "#ead09b" : "#c5d9db",
+        );
+        rect(
+          p.x - 5,
+          p.y - 10,
+          10,
+          4,
+          p.kind === "royalSpear" ? "#f7e1a7" : "#f1f4e1",
+        );
+      } else if (p.kind === "seal") {
+        ctx.strokeStyle = "#edce89";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        text("◇", p.x, p.y + 4, 14, "#f8df9e", "center");
+      } else if (p.kind === "shield") {
+        rect(p.x - 8, p.y - 9, 16, 18, "#7d9eaf");
+        rect(p.x - 3, p.y - 7, 6, 14, "#b5c8c9");
+      } else if (p.kind === "shell") {
         ellipse(p.x, p.y, 8, 8, "#506b86");
         ellipse(p.x - 1, p.y - 2, 6, 6, "#b2d1dd");
         rect(p.x - 3, p.y - 5, 2, 7, "#e7efdd");
-      } else if (p.kind === "star") {
+      } else if (["star", "darkStar", "anchor"].includes(p.kind)) {
         text("✦", p.x, p.y + 5, 17, "#e9cc94", "center");
       } else if (p.kind === "shard") {
         ctx.fillStyle = "#c5dfeb";

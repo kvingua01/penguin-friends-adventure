@@ -214,6 +214,8 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
   await begin(page);
   const result = await page.evaluate(() => {
     const failures = [];
+    const attackIds = Object.keys(ATTACKS);
+    if (attackIds.length !== 39) failures.push("missing signature attacks");
     for (const type of Object.keys(enemies)) {
       mode = "world";
       state.hp = 120;
@@ -223,6 +225,12 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
         battle.hp = battle.maxHp * (turn < 3 ? 0.95 : turn < 6 ? 0.5 : 0.2);
         beginDodge();
         played.push(battle.attack);
+        if (
+          !battle.attack.startsWith(type + ".") ||
+          !battle.secondary.startsWith(type + ".") ||
+          battle.attack === battle.secondary
+        )
+          failures.push(type + " selected an invalid signature attack");
         if (turn && played[turn] === played[turn - 1])
           failures.push(type + " repeats");
         battle.invulnerable = 999;
@@ -240,10 +248,10 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
         failures.push(type + " missing final phase");
       battle = null;
     }
-    for (const attack of Object.keys(ATTACKS)) {
+    for (const attack of attackIds) {
       mode = "world";
       state.hp = 120;
-      startBattle("king", "pattern-" + attack);
+      startBattle(attack.split(".")[0], "pattern-" + attack);
       beginDodge();
       battle.phaseLevel = 1;
       battle.attack = attack;
