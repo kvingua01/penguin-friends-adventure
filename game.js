@@ -193,9 +193,9 @@ function defense() {
 function mamaShop() {
   if (mode !== "world" || dialogue) return;
   panel("<h2>Mama’s Pantry</h2><p>" + state.gold + " G · " +
-    (state.route.bosses.parents === "kill" ? "Mama’s order book is still open." :
+    (state.route.bosses.parents === "kill" ? "Use the payment box at the counter." :
       state.map === 0 ? "Food and gear for the road, little one." :
-        "Order food and gear from Mama’s pantry.") + "</p>");
+        "Food and gear for the road.") + "</p>");
   for (const key of [...STAPLE_FOOD, ...pantryStock[state.map]]) {
     const gear = GEAR[key];
     const item = gear || items[key];
@@ -577,12 +577,7 @@ function worldMap() {
     hint.textContent = "Revisit connected rooms and walk to find regular enemies before resolving the region’s bosses or leaving.";
     $("overlay").firstChild.append(hint);
   }
-  panelButtons([
-    ...(state.map > 0 || state.route.bosses.parents === "kill"
-      ? [["Order from Mama’s Pantry", mamaShop]]
-      : []),
-    ["Back to exploring", closePanel, true],
-  ]);
+  panelButtons([["Back to exploring", closePanel, true]]);
 }
 
 function fresh() {
@@ -863,7 +858,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. You can also order through the map journal while traveling. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1265,7 +1260,7 @@ function talk(id) {
       say("PIPPY", [
         "An orca patrol took your friend? Then there’s only one place they’re heading. The Orca Kingdom.",
         "I can get you to the sea gate. After that… I’m a sailor, not a soldier.",
-        "Board my boat when you’re ready. If you’re low on food, you can order from Mama’s pantry in your map journal.",
+        "Board my boat when you’re ready. If you’re low on food, stop by Mama’s pantry where Drift keeps watch.",
       ]);
     } else
       say("PIPPY", [

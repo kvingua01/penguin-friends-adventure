@@ -700,7 +700,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
   });
 });
 
-test("Mama alone sells additional food, including through her order book later in the story", async ({ page }) => {
+test("additional food requires visiting a pantry counter in person", async ({ page }) => {
   await begin(page);
   await page.evaluate(() => {
     state.inventory = { fish: 0, boonona: 0, soup: 0 };
@@ -730,7 +730,12 @@ test("Mama alone sells additional food, including through her order book later i
     state.route.bosses.parents = "kill";
   });
   await page.keyboard.press("m");
-  await page.getByRole("button", { name: "Order from Mama’s Pantry" }).click();
+  await expect(page.locator(".room-map")).toBeVisible();
+  await expect(page.getByRole("button", { name: /order|shop|pantry/i })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("e");
+  await expect(page.getByRole("heading", { name: "Mama’s Pantry" })).toHaveCount(0);
+  await interactWith(page, "pantry-t0");
   await expect(page.getByRole("heading", { name: "Mama’s Pantry" })).toBeVisible();
   await expect(page.getByText("Royal Guard Armor", { exact: false })).toBeVisible();
   await page.locator(".item").filter({ hasText: "Silver fish" }).getByRole("button").click();
