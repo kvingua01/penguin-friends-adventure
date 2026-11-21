@@ -360,6 +360,8 @@ window.PENGUIN_WORLD = (() => {
   rooms.c5.props.push(["boat", 780, 425]);
   rooms.g5.props.push(["tower", 730, 160]);
   rooms.t3.props.push(["throne", 700, 235]);
+  for (const id of ["h0", "b1", "c4", "g0", "k1", "t0"])
+    obj(id, "pantry", 310, 290, "pantry-" + id);
   const conversations = {
     moss: [
       "You’re heading out? Brave little flippers. Mama can get you ready for the road.",

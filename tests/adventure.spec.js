@@ -249,7 +249,7 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
     if (attackIds.filter((id) => !id.startsWith("slippy.")).length !== 39) failures.push("missing signature attacks");
     for (const type of Object.keys(enemies)) {
       mode = "world";
-      state.hp = 120;
+      state.hp = state.maxHp;
       startBattle(type, "test-" + type);
       const played = [];
       for (let turn = 0; turn < 8; turn++) {
@@ -281,7 +281,7 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
     }
     for (const attack of attackIds) {
       mode = "world";
-      state.hp = 120;
+      state.hp = state.maxHp;
       startBattle(attack.split(".")[0], "pattern-" + attack);
       beginDodge();
       battle.phaseLevel = 1;
@@ -302,7 +302,7 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
         failures.push(attack + " invalid projectile");
     }
     mode = "world";
-    state.hp = 120;
+    state.hp = state.maxHp;
     startBattle("king", "test-king");
     beginDodge();
     battle.invulnerable = 0;
@@ -333,11 +333,11 @@ test("keyboard and touch movement, map, old save migration, current saves, heali
   await expect(page.locator(".room-map")).toBeVisible();
   await page.keyboard.press("Escape");
   await page.evaluate(() => {
-    state.hp = 60;
+    state.hp = 10;
   });
   await page.keyboard.press("i");
   await page.getByRole("button", { name: "Heal 35", exact: true }).click();
-  expect(await page.evaluate(() => state.hp)).toBe(95);
+  expect(await page.evaluate(() => state.hp)).toBe(45);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await go(page, "h1");
   await page.reload();
@@ -353,7 +353,7 @@ test("keyboard and touch movement, map, old save migration, current saves, heali
     finishBattle("lose");
     battle.done();
   });
-  expect(await page.evaluate(() => state.hp)).toBe(120);
+  expect(await page.evaluate(() => state.hp)).toBe(50);
   expect(
     await page.evaluate(() => state.inventory.fish),
   ).toBeGreaterThanOrEqual(2);
@@ -362,6 +362,7 @@ test("keyboard and touch movement, map, old save migration, current saves, heali
     delete old.room;
     delete old.visited;
     old.version = 1;
+    old.hp = old.maxHp = 120;
     old.map = 4;
     old.flags = { key1: true };
     mode = "title";
@@ -672,6 +673,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
   const migrated = await page.evaluate(() => {
     const old = fresh();
     old.version = 2;
+    old.hp = old.maxHp = 120;
     old.map = 1;
     old.room = "b1";
     old.flags = { parents: true };
@@ -682,7 +684,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
     const updated = readSave();
     const objects = Object.values(WORLD.rooms).flatMap((room) => room.objects);
     return {
-      version: updated.version, room: updated.room, xp: updated.xp,
+      version: updated.version, room: updated.room, xp: updated.xp, hp: updated.hp,
       inventory: updated.inventory, flags: updated.flags, route: updated.route,
       chests: objects.some(([type]) => type === "chest"),
       rests: objects.some(([type]) => type === "shrine"),
@@ -690,7 +692,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
     };
   });
   expect(migrated).toEqual({
-    version: 3, room: "b1", xp: 4, inventory: { fish: 4, boonona: 2, soup: 1 },
+    version: 4, room: "b1", xp: 4, hp: 50, inventory: { fish: 4, boonona: 2, soup: 1 },
     flags: { parents: true },
     route: { possible: false, legacy: true, kills: [0, 0, 0, 0, 0, 0], total: 0,
       spared: 0, bosses: {}, ending: null },
@@ -706,7 +708,7 @@ test("Mama alone sells additional food, including through her order book later i
     state.hp = 45;
   });
   await interactWith(page, "rest-h0");
-  expect(await page.evaluate(() => state.hp)).toBe(120);
+  expect(await page.evaluate(() => state.hp)).toBe(50);
   await go(page, "h3");
   await interactWith(page, "moss");
   await page.evaluate(() => {
@@ -730,7 +732,58 @@ test("Mama alone sells additional food, including through her order book later i
   await page.keyboard.press("m");
   await page.getByRole("button", { name: "Order from Mama’s Pantry" }).click();
   await expect(page.getByRole("heading", { name: "Mama’s Pantry" })).toBeVisible();
-  await expect(page.getByText("Arctic Armor", { exact: false })).toBeVisible();
+  await expect(page.getByText("Royal Guard Armor", { exact: false })).toBeVisible();
   await page.locator(".item").filter({ hasText: "Silver fish" }).getByRole("button").click();
   expect(await page.evaluate(() => readSave().inventory.fish)).toBe(1);
+});
+
+test("all six pantry counters sell stronger gear and meals as regional rewards rise", async ({ page }) => {
+  await begin(page);
+  const rooms = ["h0", "b1", "c4", "g0", "k1", "t0"];
+  const weapons = ["Wooden Stick", "Palmwood Staff", "Ice Dagger", "Tideglass Spear", "Snow Sword", "Royal Trident"];
+  const meals = ["Boonona", "Boonona skewer", "Cove chowder", "Sea Gate stew", "Tidal hotpot", "Royal feast"];
+  const weaponPrices = [30, 60, 90, 130, 180, 245];
+  const mealPrices = [10, 13, 21, 28, 46, 58];
+  const rewards = [];
+  for (let region = 0; region < rooms.length; region++) {
+    rewards.push(await page.evaluate(({ region, room }) => {
+      changeMap(region);
+      state.room = room;
+      const before = { gold: state.gold, xp: state.xp };
+      startBattle("snowcrab", "walking-encounter");
+      finishBattle("win");
+      battle.done();
+      return [state.gold - before.gold, state.xp - before.xp];
+    }, { region, room: rooms[region] }));
+    await interactWith(page, "pantry-" + rooms[region]);
+    const weapon = page.locator(".item").filter({ hasText: weapons[region] });
+    const meal = page.locator(".item").filter({ hasText: meals[region] });
+    await expect(weapon.getByRole("button")).toHaveText("Buy · " + weaponPrices[region] + " G");
+    await expect(meal.getByRole("button")).toHaveText("Buy · " + mealPrices[region] + " G");
+    if (region === 5) {
+      await page.locator(".item").filter({ hasText: "Royal feast" }).getByRole("button").click();
+      expect(await page.evaluate(() => readSave().inventory.feast)).toBe(1);
+    }
+    await page.getByRole("button", { name: "Exit shop" }).click();
+  }
+  expect(rewards).toEqual([[16, 1], [25, 3], [34, 5], [43, 7], [52, 9], [61, 11]]);
+});
+
+test("level-ups add eight HP seven times while the existing attack bonus keeps growing", async ({ page }) => {
+  await begin(page);
+  const results = await page.evaluate(() => {
+    const progression = [state.maxHp];
+    state.hp -= 5;
+    for (let i = 0; i < 64; i++) {
+      startBattle("snowcrab", "walking-encounter");
+      finishBattle("win");
+      battle.done();
+      if ((i + 1) % 8 === 0) progression.push(state.maxHp);
+    }
+    return { progression, hp: state.hp, atk: attackBonus(), savedHP: readSave().hp };
+  });
+  expect(results).toEqual({
+    progression: [50, 58, 66, 74, 82, 90, 98, 106, 106],
+    hp: 101, atk: 8, savedHP: 101,
+  });
 });

@@ -27,10 +27,19 @@ function difficultySpeed() {
   return (DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal).speed;
 }
 const items = {
-  fish: { name: "Silver fish", heal: 35 },
-  boonona: { name: "Boonona", heal: 25 },
-  soup: { name: "Pippy’s soup", heal: 65 },
+  fish: { name: "Silver fish", heal: 35, price: 15 },
+  boonona: { name: "Boonona", heal: 25, price: 10 },
+  soup: { name: "Pippy’s soup", heal: 65, price: 40 },
+  skewer: { name: "Boonona skewer", heal: 30, price: 13 },
+  chowder: { name: "Cove chowder", heal: 40, price: 21 },
+  stew: { name: "Sea Gate stew", heal: 50, price: 28 },
+  hotpot: { name: "Tidal hotpot", heal: 72, price: 46 },
+  feast: { name: "Royal feast", heal: 88, price: 58 },
 };
+const BASE_HP = 50;
+const HP_PER_LEVEL = 8;
+const HP_LEVEL_UPS = 7;
+const STAPLE_FOOD = ["fish", "boonona", "soup"];
 const REGION_QUOTA = 1;
 const REQUIRED_BOSSES = ["parents", "baby", "gate", "key1", "key2", "king"];
 const MERCY = {
@@ -99,12 +108,25 @@ const MERCY = {
 const GEAR = {
   stick: { name: "Wooden Stick", slot: "weapon", bonus: 3, price: 30 },
   scarf: { name: "Warm Scarf", slot: "armor", bonus: 3, price: 35 },
+  staff: { name: "Palmwood Staff", slot: "weapon", bonus: 5, price: 60 },
+  coat: { name: "Quilted Coat", slot: "armor", bonus: 5, price: 65 },
   dagger: { name: "Ice Dagger", slot: "weapon", bonus: 7, price: 90 },
   vest: { name: "Ice Vest", slot: "armor", bonus: 7, price: 100 },
+  spear: { name: "Tideglass Spear", slot: "weapon", bonus: 9, price: 130 },
+  mail: { name: "Shell Mail", slot: "armor", bonus: 9, price: 145 },
   sword: { name: "Snow Sword", slot: "weapon", bonus: 12, price: 180 },
   armor: { name: "Arctic Armor", slot: "armor", bonus: 12, price: 200 },
+  trident: { name: "Royal Trident", slot: "weapon", bonus: 15, price: 245 },
+  royalArmor: { name: "Royal Guard Armor", slot: "armor", bonus: 15, price: 270 },
 };
-const foodPrices = { fish: 15, boonona: 10, soup: 40 };
+const pantryStock = [
+  ["stick", "scarf"],
+  ["staff", "coat", "skewer"],
+  ["dagger", "vest", "chowder"],
+  ["spear", "mail", "stew"],
+  ["sword", "armor", "hotpot"],
+  ["trident", "royalArmor", "feast"],
+];
 
 function routeRecord(legacy = false) {
   return {
@@ -137,8 +159,11 @@ function storyRoute() {
         (boss === "parents" && state.route.bosses[boss] === "flee"))) return "pacifist";
   return "neutral";
 }
-function level() {
-  return 1 + Math.min(14, Math.floor(state.xp / 8));
+function level(xp = state.xp) {
+  return 1 + Math.min(14, Math.floor(xp / 8));
+}
+function maxHealth(xp) {
+  return BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, level(xp) - 1);
 }
 function gearBonus(slot) {
   return GEAR[state.equipment[slot]]?.bonus || 0;
@@ -151,18 +176,14 @@ function defense() {
 }
 function mamaShop() {
   if (mode !== "world" || dialogue) return;
-  const stock = ["stick", "scarf"];
-  if (state.map >= 2 || state.flags.captured) stock.push("dagger", "vest");
-  if (state.map >= 4 || state.flags.gate) stock.push("sword", "armor");
-
   panel("<h2>Mama’s Pantry</h2><p>" + state.gold + " G · " +
     (state.route.bosses.parents === "kill" ? "Mama’s order book is still open." :
       state.map === 0 ? "Food and gear for the road, little one." :
         "Order food and gear from Mama’s pantry.") + "</p>");
-  for (const key of [...Object.keys(items), ...stock]) {
+  for (const key of [...STAPLE_FOOD, ...pantryStock[state.map]]) {
     const gear = GEAR[key];
     const item = gear || items[key];
-    const price = gear?.price ?? foodPrices[key];
+    const price = item.price;
     const row = document.createElement("div");
     row.className = "item";
     const label = document.createElement("span");
@@ -172,7 +193,7 @@ function mamaShop() {
       if (state.gold < price || (gear ? state.gear.includes(key) : state.inventory[key] >= 999)) return;
       state.gold -= price;
       if (gear) state.gear.push(key);
-      else state.inventory[key]++;
+      else state.inventory[key] = (state.inventory[key] || 0) + 1;
       save();
       mamaShop();
     });
@@ -550,7 +571,7 @@ function worldMap() {
 
 function fresh() {
   return {
-    version: 3,
+    version: 4,
     route: routeRecord(),
     gold: 0,
     gear: [],
@@ -560,8 +581,8 @@ function fresh() {
     map: 0,
     x: 480,
     y: 350,
-    hp: 120,
-    maxHp: 120,
+    hp: BASE_HP,
+    maxHp: BASE_HP,
     inventory: { fish: 3, boonona: 0, soup: 1 },
     flags: {},
     xp: 0,
@@ -578,7 +599,7 @@ function readSave() {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (
       !s ||
-      ![1, 2, 3].includes(s.version) ||
+      ![1, 2, 3, 4].includes(s.version) ||
       !Number.isInteger(s.map) ||
       s.map < 0 ||
       s.map >= maps.length ||
@@ -588,10 +609,10 @@ function readSave() {
       s.x > 905 ||
       s.y < 75 ||
       s.y > 525 ||
-      s.maxHp !== 120 ||
+      s.maxHp !== (s.version < 4 ? 120 : maxHealth(s.xp)) ||
       !Number.isFinite(s.hp) ||
       s.hp <= 0 ||
-      s.hp > 120 ||
+      s.hp > s.maxHp ||
       !s.inventory ||
       !s.flags ||
       typeof s.flags !== "object" ||
@@ -600,13 +621,11 @@ function readSave() {
       s.xp < 0
     )
       return null;
-    for (const k of Object.keys(items))
-      if (
-        !Number.isInteger(s.inventory[k]) ||
-        s.inventory[k] < 0 ||
-        s.inventory[k] > 999
-      )
-        return null;
+    for (const k of Object.keys(items)) {
+      const count = s.inventory[k];
+      if (count === undefined && !STAPLE_FOOD.includes(k)) continue;
+      if (!Number.isInteger(count) || count < 0 || count > 999) return null;
+    }
     if (
       s.version === 1 ||
       !WORLD.rooms[s.room] ||
@@ -619,12 +638,17 @@ function readSave() {
     }
     if (!s.visited || typeof s.visited !== "object" || Array.isArray(s.visited))
       s.visited = { [s.room]: true };
-    if (s.version !== 3) {
+    if (s.version < 3) {
       s.route = routeRecord(s.map > 0 || s.xp > 0 || REQUIRED_BOSSES.some((id) => s.flags[id]));
       s.gold = 0;
       s.gear = [];
       s.equipment = { weapon: null, armor: null };
-      s.version = 3;
+    }
+    if (s.version < 4) {
+      const previousMax = s.maxHp;
+      s.maxHp = maxHealth(s.xp);
+      s.hp = Math.max(1, Math.round(s.hp * s.maxHp / previousMax));
+      s.version = 4;
     }
     if (!s.route || !Array.isArray(s.route.kills) || s.route.kills.length !== 6 ||
         s.route.kills.some((kills) => !Number.isInteger(kills) || kills < 0) ||
@@ -822,7 +846,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Buy food, weapons, and armor from Mama at home. Away from Frostbell, order from her pantry through the map journal. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. You can also order through the map journal while traveling. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -944,6 +968,7 @@ function inventory(inBattle = false) {
       "</p>",
   );
   for (const [id, item] of Object.entries(items)) {
+    if (!STAPLE_FOOD.includes(id) && !state.inventory[id]) continue;
     const row = document.createElement("div");
     row.className = "item";
     const label = document.createElement("span");
@@ -1025,6 +1050,7 @@ function targets() {
       name:
         {
           shrine: "Rest lantern",
+          pantry: "Mama’s Pantry",
           fruit: "Boonona grove",
           boss: enemies[o[3]]?.name,
           cage: "Slippy",
@@ -1087,6 +1113,9 @@ function interact() {
         return;
       }
       startBattle(n.id, n.id);
+      break;
+    case "pantry":
+      mamaShop();
       break;
     case "shrine":
       state.hp = state.maxHp;
@@ -1527,11 +1556,16 @@ function finishBattle(outcome) {
   keys.clear();
   if (outcome === "win" || outcome === "spare") {
     const killed = outcome === "win";
-    const reward = b.boss ? 42 + b.xp * 10 : (killed ? 13 : 10) + b.xp * 3;
-    const xp = killed ? b.xp : 0;
+    const regionalGold = state.map * (b.boss ? 16 : 9);
+    const reward = regionalGold + (b.boss ? 42 + b.xp * 10 : (killed ? 13 : 10) + b.xp * 3);
+    const xp = killed ? b.xp + state.map * 2 : 0;
+    const previousMax = state.maxHp;
     if (b.boss) state.flags[b.id] = true;
     state.gold += reward;
     state.xp += xp;
+    state.maxHp = maxHealth(state.xp);
+    const hpGain = state.maxHp - previousMax;
+    state.hp += hpGain;
     if (killed) {
       state.route.total++;
       if (!b.boss) state.route.kills[state.map]++;
@@ -1544,6 +1578,7 @@ function finishBattle(outcome) {
     }
     b.message = (killed ? "Victory! You earned " : "You spared " + b.name + "! You earned ") +
       reward + " G" + (xp ? " and " + xp + " EXP" : "") + ".";
+    if (hpGain > 0) b.message += " Max HP increased by " + hpGain + ".";
     if (!b.boss && state.route.possible && hasQuota())
       b.message += " The next footsteps are yours alone. But nobody came.";
     tone(659, 0.4);
@@ -3152,6 +3187,12 @@ function object(o) {
       rect(x - 18 + i * 12, y - 59 + (i % 2) * 6, 7, 17, "#e9bd61");
       rect(x - 17 + i * 12, y - 59 + (i % 2) * 6, 3, 14, "#ffe3a0");
     }
+    return;
+  }
+  if (t === "pantry") {
+    rect(x - 22, y - 23, 44, 23, "#536576");
+    rect(x - 25, y - 28, 50, 6, "#c1a26e");
+    text("G", x, y - 8, 12, "#f4dfa2", "center");
     return;
   }
   if (t === "shrine") {
