@@ -853,7 +853,7 @@ test("holding Shift doubles exploration movement and counts real distance withou
   expect(result.heart).toBeCloseTo(193 * 0.04);
 });
 
-test("camping lanes track the heart and falling walls are 35% slower with reachable gaps", async ({ page }) => {
+test("camping lanes track the heart and vertical walls are 35% slower with reachable gaps", async ({ page }) => {
   await begin(page);
   const report = await page.evaluate(() => {
     const failures = [];
@@ -880,6 +880,7 @@ test("camping lanes track the heart and falling walls are 35% slower with reacha
     const walls = [];
     for (const [enemy, pattern] of [
       ["key2", "key2.sluice"],
+      ["key2", "key2.undertow"],
       ["gate", "gate.march"],
       ["slippy", "slippy.lastlight"],
       ["snowcrab", "snowcrab.snow"],
@@ -893,7 +894,11 @@ test("camping lanes track the heart and falling walls are 35% slower with reacha
         battle.hazards = [];
         spawnPattern(pattern);
         const columns = battle.bullets;
-        columns.forEach((p) => speeds.add(p.vy));
+        columns.forEach((p) => {
+          speeds.add(p.vy);
+          if (pattern === "key2.undertow" && p.y <= arena.y + arena.h)
+            failures.push("Reverse Tide spawned above the bottom edge");
+        });
         const allColumns = [];
         if (pattern === "snowcrab.snow") {
           for (let x = arena.x + 25; x < arena.x + arena.w; x += 66)
@@ -912,7 +917,7 @@ test("camping lanes track the heart and falling walls are 35% slower with reacha
   });
   expect(report.failures).toEqual([]);
   expect(report.walls.map((wall) => wall.speeds)).toEqual(
-    [145, 145, 185 * 1.12, 113].map((speed) => [speed * 0.65]),
+    [145, -145, 145, 185 * 1.12, 113].map((speed) => [speed * 0.65]),
   );
   for (const wall of report.walls)
     expect(wall.maxGapShift).toBeLessThan(193 * 0.7 * 0.87);

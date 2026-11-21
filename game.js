@@ -1984,12 +1984,13 @@ function spawnPattern(pattern = battle.attack) {
     else
       aim(x < L + a.w / 2 ? L - 9 : R + 9, y, 1, 0, kind);
   };
-  const fallingWall = (kind, fallSpeed, gapHalfWidth) => {
+  const verticalWall = (kind, velocityY, gapHalfWidth) => {
     // Sweep the gap across the arena without wrapping to the far side.
     const gap = L + a.w / 2 + Math.sin(n * 0.5) * (a.w / 2 - 58);
+    const y = velocityY < 0 ? B + 9 : T - 8;
     for (let x = L + 6 + (n % 2) * 4; x < R; x += 21)
       if (Math.abs(x - gap) > gapHalfWidth)
-        bullet(x, T - 8, 0, fallSpeed * 0.65, 7, kind);
+        bullet(x, y, 0, velocityY * 0.65, 7, kind);
     return gap;
   };
   switch (pattern) {
@@ -2232,7 +2233,7 @@ function spawnPattern(pattern = battle.attack) {
       );
       break;
     case "gate.march":
-      fallingWall("spear", speed, 39);
+      verticalWall("spear", speed, 39);
       break;
     case "gate.anchor":
       burst(
@@ -2303,7 +2304,7 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "key2.sluice":
-      fallingWall("water", speed, 37);
+      verticalWall("water", speed, 37);
       break;
     case "key2.whirl": {
       for (let i = 0; i < 4; i++)
@@ -2318,12 +2319,9 @@ function spawnPattern(pattern = battle.attack) {
         );
       break;
     }
-    case "key2.undertow": {
-      const gap = L + 70 + ((Math.sin(t) + 1) * (a.w - 140)) / 2;
-      for (let x = L + 15; x < R; x += 27)
-        if (Math.abs(x - gap) > 37) bullet(x, B + 9, 0, -speed, 6, "wave");
+    case "key2.undertow":
+      verticalWall("wave", -speed, 37);
       break;
-    }
     case "key2.surge": {
       hazard("rush", L, T + ((n * 59) % (a.h - 46)), a.w, 46, 0.95, 0.4);
       for (let i = 0; i < 3; i++)
@@ -2426,7 +2424,7 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "slippy.lastlight": {
-      const gap = fallingWall("shard", speed * 1.12, 36);
+      const gap = verticalWall("shard", speed * 1.12, 36);
       if (n % 2 === 0) {
         const y = T + 34 + (n * 43) % (a.h - 90);
         hazard("rush", L, y, a.w, 20, 0.83, 0.23);
