@@ -143,9 +143,25 @@ test("48 connected rooms, safe door arrivals, reachable interactions, and workin
   expect(await page.evaluate(() => state.room)).toBe("k7");
 });
 
-test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and ending", async ({
-  page,
-}) => {
+async function completeStory(page, peaceful) {
+  const resolve = async (type) => {
+    if (!peaceful && type !== "gate") {
+      await win(page, type);
+      return;
+    }
+    await page.evaluate((type) => {
+      startBattle(type, type);
+      for (let index = 0; !battle.spareable; index++) {
+        if (index >= MERCY[type].length) throw Error("Could not spare " + type);
+        act(index);
+        battle.phaseTime = battle.duration;
+        updateBattle(0);
+      }
+      spare();
+      battle.done();
+    }, type);
+    await flush(page);
+  };
   await begin(page);
   await go(page, "h1");
   await interactWith(page, "slippy");
@@ -154,9 +170,15 @@ test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and e
   expect(await page.evaluate(() => fleeUnlocked())).toBe(false);
   for (let i = 0; i < 2; i++) {
     await page.getByRole("button", { name: "ACT", exact: true }).click();
+    await page.getByRole("button", {
+      name: i === 0 ? "Explain the Trip" : "Promise to Return",
+      exact: true,
+    }).click();
     await endTurn(page);
   }
-  await page.getByRole("button", { name: "FLEE", exact: true }).click();
+  await page.getByRole("button", {
+    name: peaceful ? "SPARE" : "FLEE", exact: true,
+  }).click();
   await page.keyboard.press("e");
   await flush(page);
   await go(page, "h9");
@@ -174,7 +196,7 @@ test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and e
     await interactWith(page, id);
   }
   await go(page, "b9");
-  await win(page, "baby");
+  await resolve("baby");
   await interactWith(page, "region");
   expect(await page.evaluate(() => state.flags.captured)).toBe(true);
   await go(page, "c5");
@@ -183,29 +205,38 @@ test("complete four-chapter route, parent ACT, fruit gates, wardens, King, and e
   await interactWith(page, "pippy");
   await interactWith(page, "region");
   await go(page, "g5");
-  await win(page, "gate");
+  await resolve("gate");
   await interactWith(page, "region");
   await go(page, "k3");
   await interactWith(page, "archive-lamp");
   await go(page, "k4");
-  await win(page, "key1");
+  await resolve("key1");
   await go(page, "k6");
   await interactWith(page, "sluice-wheel");
   await go(page, "k8");
-  await win(page, "key2");
+  await resolve("key2");
   await go(page, "k11");
   await interactWith(page, "region");
   await go(page, "t3");
-  await win(page, "king");
+  await resolve("king");
   await interactWith(page, "slippy-cage");
   await expect(
     page.getByRole("heading", {
-      name: "Some things are bigger than the ocean.",
+      name: peaceful ? "Room for one more" : "Some things are bigger than the ocean.",
     }),
   ).toBeVisible();
   expect(
     await page.evaluate(() => Object.keys(state.visited).length),
   ).toBeGreaterThan(29);
+  expect(await page.evaluate(() => readSave().route.ending)).toBe(
+    peaceful ? "pacifist" : "neutral",
+  );
+}
+test("complete the four-chapter story on Neutral with mixed outcomes", async ({ page }) => {
+  await completeStory(page, false);
+});
+test("complete the four-chapter story without a kill on Pacifist", async ({ page }) => {
+  await completeStory(page, true);
 });
 
 test("enemies vary attacks, bosses escalate, warnings are safe before firing, and damage is real", async ({
@@ -215,7 +246,7 @@ test("enemies vary attacks, bosses escalate, warnings are safe before firing, an
   const result = await page.evaluate(() => {
     const failures = [];
     const attackIds = Object.keys(ATTACKS);
-    if (attackIds.length !== 39) failures.push("missing signature attacks");
+    if (attackIds.filter((id) => !id.startsWith("slippy.")).length !== 39) failures.push("missing signature attacks");
     for (const type of Object.keys(enemies)) {
       mode = "world";
       state.hp = 120;
@@ -489,4 +520,179 @@ test("settings apply and save exact heart and attack speed multipliers", async (
     expect(actual.cadence).toBeCloseTo(factor);
     expect(actual.saved).toBe(true);
   }
+});
+
+test("each regular enemy and story boss can be spared for Gold without EXP", async ({ page }) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    const failures = [];
+    for (const [type, actions] of Object.entries(MERCY)) {
+      startBattle(type, type);
+      spare();
+      if (battle.phase !== "dodge") failures.push(type + ": unearned spare");
+      battle.phaseTime = battle.duration;
+      updateBattle(0);
+      for (let index = 0; index < actions.length - 1 && !battle.spareable; index++) {
+        act(index);
+        battle.phaseTime = battle.duration;
+        updateBattle(0);
+      }
+      const gold = state.gold;
+      spare();
+      if (!battle.spareable || battle.phase !== "result" || state.gold <= gold || state.xp)
+        failures.push(type + ": mercy outcome");
+      battle.done();
+      while (dialogue) advance();
+    }
+    return { failures, route: storyRoute(), eligible: state.route.possible,
+      spared: readSave().route.spared, kills: state.route.total };
+  });
+  expect(result).toEqual({ failures: [], route: "pacifist", eligible: false, spared: 11, kills: 0 });
+  await page.evaluate(() => ending());
+  await expect(page.getByRole("heading", { name: "Room for one more" })).toBeVisible();
+});
+
+test("regional grinding exhausts each pool and unlocks Slippy after King Orca", async ({ page }) => {
+  await begin(page);
+  const report = await page.evaluate(() => {
+    const failures = [];
+    for (let map = 0; map < 6; map++) {
+      changeMap(map);
+      const otherRoom = currentRoom().doors.find((door) => door.to !== "region").to;
+      for (let kill = 0; kill < REGION_QUOTA; kill++) {
+        for (let entry = 0; entry < 5; entry++) {
+          const nextRoom = state.room === WORLD.starts[map] ? otherRoom : WORLD.starts[map];
+          const door = currentRoom().doors.find((door) => door.to === nextRoom);
+          enterRoom(nextRoom, door.direction);
+        }
+        updateWalkingEncounters(0.61);
+        if (mode !== "battle" || battle.boss) throw Error("Missing regular encounter in " + map);
+        finishBattle("win");
+        battle.done();
+      }
+      state.encounterRooms = 5;
+      updateWalkingEncounters(0.61);
+      if (mode !== "world" || state.route.kills[map] !== 20) failures.push(map);
+      while (dialogue) advance();
+      for (const type of [["parents"], ["baby"], [], ["gate"], ["key1", "key2"], ["king"]][map]) {
+        if (slippyPending()) failures.push("early Slippy");
+        startBattle(type, type);
+        finishBattle("win");
+        battle.done();
+        while (dialogue) advance();
+      }
+    }
+    const phases = [];
+    for (const fraction of [1, 0.6, 0.2]) {
+      battle.hp = battle.maxHp * fraction;
+      spare();
+      if (battle.spareable || fleeAllowed() || battle.phase !== "dodge") failures.push("Slippy mercy");
+      phases.push(battle.phaseLevel);
+      battle.phaseTime = battle.duration;
+      updateBattle(0);
+      actMenu();
+      if (battle.spareable || battle.phase !== "dodge") failures.push("Slippy ACT");
+      battle.phaseTime = battle.duration;
+      updateBattle(0);
+    }
+    const result = { failures, phases, boss: battle.type, route: storyRoute(),
+      kills: state.route.kills, total: state.route.total };
+    finishBattle("win");
+    battle.done();
+    return result;
+  });
+  expect(report).toEqual({ failures: [], phases: [1, 2, 3], boss: "slippy", route: "genocide",
+    kills: [20, 20, 20, 20, 20, 20], total: 126 });
+  await expect(page.getByRole("heading", { name: "No one on the shore" })).toBeVisible();
+});
+
+test("fleeing preserves eligibility, while an early boss kill or crossing closes the route", async ({ page }) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    const status = [];
+    startBattle("snowcrab", "walking-encounter");
+    finishBattle("flee");
+    battle.done();
+    status.push(state.route.possible);
+    startBattle("parents", "parents");
+    finishBattle("win");
+    battle.done();
+    while (dialogue) advance();
+    status.push(state.route.possible, storyRoute(), slippyPending());
+    state = fresh();
+    state.map = 2;
+    state.room = "c5";
+    state.flags.pippy = true;
+    exitMap();
+    status.push(state.route.possible, state.map);
+    return status;
+  });
+  expect(result).toEqual([true, false, "neutral", false, false, 3]);
+});
+
+test("shopping, equipment, and battle results persist without duplicate rewards", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => {
+    state.gold = 100;
+    changeMap(0);
+    enterRoom("h3", "N");
+  });
+  await interactWith(page, "h3");
+  const stick = page.locator(".item").filter({ hasText: "Wooden Stick" });
+  await stick.getByRole("button").click();
+  await expect(stick.getByRole("button")).toBeDisabled();
+  await page.locator(".item").filter({ hasText: "Warm Scarf" }).getByRole("button").click();
+  await page.getByRole("button", { name: "Exit shop" }).click();
+  await page.keyboard.press("i");
+  await page.getByRole("button", { name: "Equip Wooden Stick" }).click();
+  await page.getByRole("button", { name: "Equip Warm Scarf" }).click();
+  await expect(page.getByText(/35 G · Level 1.*ATK 22 · DEF 3/)).toBeVisible();
+  await page.keyboard.press("Escape");
+  const saved = await page.evaluate(() => {
+    startBattle("parents", "parents");
+    finishBattle("win");
+    const gold = state.gold;
+    finishBattle("win");
+    if (gold !== state.gold) throw Error("Repeated result paid twice");
+    return { gold, xp: state.xp };
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Continue adventure" }).click();
+  const loaded = await page.evaluate(() => {
+    startBattle("parents", "parents");
+    return { gold: state.gold, xp: state.xp, mode, atk: attackBonus(), def: defense(),
+      outcome: state.route.bosses.parents };
+  });
+  expect(loaded).toEqual({ ...saved, mode: "world", atk: 3, def: 3, outcome: "kill" });
+});
+
+test("version 2 saves migrate without invented history and preserve ordinary supplies", async ({ page }) => {
+  await begin(page);
+  const migrated = await page.evaluate(() => {
+    const old = fresh();
+    old.version = 2;
+    old.map = 1;
+    old.room = "b1";
+    old.flags = { parents: true };
+    old.xp = 4;
+    old.inventory = { fish: 4, boonona: 2, soup: 1 };
+    for (const field of ["route", "equipment", "gear", "gold"]) delete old[field];
+    localStorage.setItem(SAVE_KEY, JSON.stringify(old));
+    const updated = readSave();
+    const objects = Object.values(WORLD.rooms).flatMap((room) => room.objects);
+    return {
+      version: updated.version, room: updated.room, xp: updated.xp,
+      inventory: updated.inventory, flags: updated.flags, route: updated.route,
+      chests: objects.some(([type]) => type === "chest"),
+      rests: objects.some(([type]) => type === "shrine"),
+      storage: objects.some(([type]) => /storage|crate/i.test(type)),
+    };
+  });
+  expect(migrated).toEqual({
+    version: 3, room: "b1", xp: 4, inventory: { fish: 4, boonona: 2, soup: 1 },
+    flags: { parents: true },
+    route: { possible: false, legacy: true, kills: [0, 0, 0, 0, 0, 0], total: 0,
+      spared: 0, bosses: {}, ending: null },
+    chests: true, rests: true, storage: false,
+  });
 });

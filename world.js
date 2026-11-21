@@ -361,6 +361,15 @@ window.PENGUIN_WORLD = (() => {
   rooms.c5.props.push(["boat", 780, 425]);
   rooms.g5.props.push(["tower", 730, 160]);
   rooms.t3.props.push(["throne", 700, 235]);
+  const shops = {
+    h3: { name: "Moss’s Outfitter", gear: ["stick", "scarf"] },
+    b1: { name: "Boonona Market", gear: ["stick", "scarf"] },
+    c4: { name: "Quiet Cove Trading Post", gear: ["dagger", "vest"] },
+    g0: { name: "Sea Gate Provision Stand", gear: ["dagger", "vest"] },
+    k1: { name: "Pebble’s Supply Shelf", gear: ["sword", "armor"] },
+    t0: { name: "Royal Halls Supply Post", gear: ["sword", "armor"] },
+  };
+  for (const id of Object.keys(shops)) obj(id, "shop", 310, 290, id);
   const conversations = {
     moss: [
       "You’re heading out? Brave little flippers. Have a fish on the house.",
@@ -404,5 +413,5 @@ window.PENGUIN_WORLD = (() => {
       );
     });
   }
-  return { rooms, starts, conversations };
+  return { rooms, starts, conversations, shops };
 })();

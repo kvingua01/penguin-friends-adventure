@@ -465,3 +465,14 @@ footer {
     display: none;
   }
 }
+
+#battleActions .spare-ready {
+  border-color: #ffe66d;
+  color: #ffe66d;
+  background: #44432d;
+}
+@media (max-width: 480px) {
+  #battleActions button {
+    min-width: 82px;
+  }
+}

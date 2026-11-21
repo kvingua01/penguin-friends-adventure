@@ -31,6 +31,216 @@ const items = {
   boonona: { name: "Boonona", heal: 25 },
   soup: { name: "Pippy’s soup", heal: 65 },
 };
+const REGION_QUOTA = 20;
+const REQUIRED_BOSSES = ["parents", "baby", "gate", "key1", "key2", "king"];
+const MERCY = {
+  snowcrab: [
+    ["Give Space", "The crab lowers one frosty claw. Maybe wave from here."],
+    ["Wave", "The crab waves back with both mittens."],
+    ["Tap Shell", "The crab snaps shut. Give it some room."],
+  ],
+  coconut: [
+    ["Offer a Snack", "You mime sharing lunch. The bandit offers you a seat."],
+    ["Tell a Joke", "The bandit laughs so hard the coconut rolls away."],
+    ["Grab Coconut", "It pulls its lunch closer. Try sharing or making it laugh."],
+  ],
+  reef: [
+    ["Match Rhythm", "You match the passing school. It leaves a little space for you."],
+    ["Swim Alongside", "You keep pace without crowding it. The nibbler relaxes."],
+    ["Splash", "The school scatters. Let it settle, then match its rhythm."],
+  ],
+  gull: [
+    ["Brace", "You hold steady in the wind. The gull circles lower."],
+    ["Point to Shelter", "It sees the ledge and tucks in its wings."],
+    ["Chase", "The gull climbs again. Stand steady or let it land."],
+  ],
+  guard: [
+    ["Lower Flippers", "The sentry eases its grip. Explain why you are here."],
+    ["Explain Rescue", "The sentry checks the orders. It has no orders about rescuing friends."],
+    ["Demand Passage", "The spear stays level. Show you come in peace first."],
+  ],
+  parents: [
+    ["Explain the Trip", "“I’m scared, too.” They listen. Tell them how you’ll look after each other."],
+    ["Promise to Return", "“We’ll take care of each other.” Their name turns yellow. Try SPARE, or FLEE."],
+    ["Stomp", "Papa folds his flippers. Start by explaining your plans."],
+  ],
+  baby: [
+    ["Play Catch", "Baby Orca laughs as the boonona bobs back. He wants someone to play with."],
+    ["Invite to Lunch", "“You mean I can stay for lunch?” Baby Orca lets the current go free."],
+    ["Claim the Beach", "He stamps his tail. Try playing with him first."],
+  ],
+  gate: [
+    ["Request Parley", "The Captain grants a hearing. State your purpose."],
+    ["Describe the Capture", "He asks which order authorized taking Slippy."],
+    ["Question the Order", "He rereads the order and lowers his harpoon."],
+    ["Threaten", "He returns to formation. Ask for a parley."],
+  ],
+  key1: [
+    ["Study the Pearl", "The light is fading. The warden asks what you see."],
+    ["Shield the Light", "You cup your flippers around it. The pearl steadies."],
+    ["Offer to Leave It", "The warden trusts you with the seal while the pearl stays safe."],
+    ["Reach for Pearl", "The warden pulls it away. Look closely first."],
+  ],
+  key2: [
+    ["Watch the Tide", "The current rises and falls in a rhythm. The warden waits for you to notice the gap."],
+    ["Wait for Ebb", "You wait instead of pushing against the current."],
+    ["Offer a Watch", "Together you watch the water settle. Your patience earns the seal."],
+    ["Force the Gate", "The tide rises. Start by watching it."],
+  ],
+  king: [
+    ["Ask About Slippy", "The King insists Slippy was safe. Ask why he wanted him there."],
+    ["Ask Why", "The King talks about empty halls and meals eaten alone."],
+    ["Listen", "You let him finish. He asks what a friend would do."],
+    ["Offer a Choice", "You ask him to open the cage and let Slippy choose. The King lowers his crown."],
+    ["Make Demands", "The King raises his trident. Start by asking about Slippy."],
+  ],
+};
+
+const GEAR = {
+  stick: { name: "Wooden Stick", slot: "weapon", bonus: 3, price: 30 },
+  scarf: { name: "Warm Scarf", slot: "armor", bonus: 3, price: 35 },
+  dagger: { name: "Ice Dagger", slot: "weapon", bonus: 7, price: 90 },
+  vest: { name: "Ice Vest", slot: "armor", bonus: 7, price: 100 },
+  sword: { name: "Snow Sword", slot: "weapon", bonus: 12, price: 180 },
+  armor: { name: "Arctic Armor", slot: "armor", bonus: 12, price: 200 },
+};
+const foodPrices = { fish: 15, boonona: 10, soup: 40 };
+
+function routeRecord(legacy = false) {
+  return {
+    possible: !legacy, legacy, kills: Array(6).fill(0), total: 0, spared: 0,
+    bosses: {}, ending: null,
+  };
+}
+function hasQuota() {
+  return state.route.kills[state.map] >= REGION_QUOTA;
+}
+function genocideComplete() {
+  return state.route.possible &&
+    state.route.kills.every((kills) => kills >= REGION_QUOTA) &&
+    REQUIRED_BOSSES.every((boss) => state.route.bosses[boss] === "kill");
+}
+function slippyPending() {
+  return state.map === 5 && genocideComplete() && !state.flags.slippyDefeated;
+}
+function confrontSlippy() {
+  say("SLIPPY", [
+    "I counted the footsteps outside the cage. I kept hoping the next ones would be yours.",
+    "Then the guards stopped coming. I heard what happened on the way here.",
+    "You were supposed to come for me, Flippy. Now I have to keep everyone else safe from you.",
+  ], () => startBattle("slippy", "slippyDefeated"));
+}
+function protectQuota(proceed) {
+  const remaining = REGION_QUOTA - state.route.kills[state.map];
+  if (!state.route.possible || remaining >= REGION_QUOTA || remaining <= 0) {
+    proceed();
+    return;
+  }
+  panel("<h2>Continue the story?</h2><p>" + remaining +
+    " regular enemies remain in this region. Finishing this encounter or leaving early can close Genocide. Keep exploring to find more.</p>");
+  panelButtons([
+    ["Keep exploring", closePanel, true],
+    ["Continue", () => { closePanel(); proceed(); }],
+  ]);
+}
+function storyRoute() {
+  if (genocideComplete()) return "genocide";
+  if (!state.route.legacy && !state.route.total &&
+      REQUIRED_BOSSES.every((boss) => state.route.bosses[boss] === "spare" ||
+        (boss === "parents" && state.route.bosses[boss] === "flee"))) return "pacifist";
+  return "neutral";
+}
+function level() {
+  return 1 + Math.min(14, Math.floor(state.xp / 8));
+}
+function gearBonus(slot) {
+  return GEAR[state.equipment[slot]]?.bonus || 0;
+}
+function attackBonus() {
+  return level() - 1 + gearBonus("weapon");
+}
+function defense() {
+  return Math.floor((level() - 1) / 3) + gearBonus("armor");
+}
+function shop(id) {
+  const location = WORLD.shops[id];
+  const abandoned = state.route.possible && hasQuota();
+  panel("<h2>" + location.name + "</h2><p>" + state.gold + " G · " +
+    (abandoned ? "The keeper has left. A price list and payment box are still here." :
+      "Food and gear for the road.") + "</p>");
+  for (const key of [...Object.keys(items), ...location.gear]) {
+    const gear = GEAR[key];
+    const item = gear || items[key];
+    const price = gear?.price ?? foodPrices[key];
+    const row = document.createElement("div");
+    row.className = "item";
+    const label = document.createElement("span");
+    label.textContent = item.name + " · +" + (gear ?
+      gear.bonus + (gear.slot === "weapon" ? " ATK" : " DEF") : item.heal + " HP");
+    const buy = button("Buy · " + price + " G", () => {
+      if (state.gold < price || (gear ? state.gear.includes(key) : state.inventory[key] >= 999)) return;
+      state.gold -= price;
+      if (gear) state.gear.push(key);
+      else state.inventory[key]++;
+      save();
+      shop(id);
+    });
+    buy.disabled = state.gold < price || (gear ? state.gear.includes(key) : state.inventory[key] >= 999);
+    row.append(label, buy);
+    $("overlay").firstChild.append(row);
+  }
+  panelButtons([["Exit shop", closePanel, true]]);
+}
+
+function actMenu() {
+  if (battle.phase !== "choice") return;
+  if (battle.type === "slippy") {
+    battle.message = "You say his name. “I remember who you were,” Slippy says. “I know who you are now.”";
+    beginDodge();
+    return;
+  }
+  panel("<h2>ACT · " + battle.name + "</h2>");
+  const reaction = document.createElement("p");
+  reaction.textContent = battle.actReaction || battle.message;
+  $("overlay").firstChild.append(reaction);
+  panelButtons([
+    ...MERCY[battle.type].map(([label], index) => [label, () => {
+      closePanel();
+      act(index);
+    }]),
+    ["Back", closePanel],
+  ]);
+}
+function act(index) {
+  const b = battle;
+  if (b.phase !== "choice" || b.type === "slippy") return;
+  const choices = MERCY[b.type];
+  const goal = choices.length - 1;
+  if (!b.spareable) {
+    b.annoyed = index === goal;
+    if (index === b.acts || (b.type === "gull" && index === 1)) b.acts++;
+    else if (index === goal) b.acts = Math.max(0, b.acts - 1);
+    b.spareable = b.acts >= goal ||
+      (b.type === "coconut" && index !== goal) ||
+      (b.type === "gull" && index === 1);
+  }
+  b.message = b.spareable ? choices[index][1] + " You can SPARE now." :
+    index === goal || index === b.acts - 1 ? choices[index][1] :
+      b.name + " isn’t ready for that yet. Try " + choices[b.acts][0] + ".";
+  b.actReaction = b.message;
+  tone(523, 0.2);
+  beginDodge();
+}
+function spare() {
+  if (battle.phase !== "choice") return;
+  if (battle.spareable && battle.type !== "slippy") finishBattle("spare");
+  else {
+    battle.message = battle.type === "slippy" ?
+      "Slippy shakes his head. “You don’t get to walk away from this.”" :
+      battle.name + " isn’t ready to stand down. Try ACT.";
+    beginDodge();
+  }
+}
 const palettes = [
   {
     sea: "#23576c",
@@ -93,6 +303,10 @@ const maps = [
   { name: "The Throne of the Sea", chapter: 4, tag: "NO FRIEND LEFT BEHIND" },
 ];
 const enemies = {
+  slippy: {
+    name: "Slippy", hp: 720, damage: 24, color: "#a5cddd", boss: true,
+    intro: "Slippy plants his feet. Snow begins to rise around him.", xp: 12,
+  },
   snowcrab: {
     name: "Snowcap Crab",
     hp: 58,
@@ -291,7 +505,7 @@ function worldMap() {
       maps[state.map].chapter +
       "</div><h2>" +
       maps[state.map].name +
-      "</h2><p>Gold is your current room. Filled rooms have been visited. Lines show connected doors. Travel by exploring — this map does not teleport you.</p>",
+      "</h2><p>The gold tile is your current room. Filled rooms have been visited. Lines show connected doors. Travel by exploring — this map does not teleport you.</p>",
   );
   const grid = document.createElement("div");
   grid.className = "room-map";
@@ -323,12 +537,28 @@ function worldMap() {
     grid.append(cell);
   }
   $("overlay").firstChild.append(grid);
+  const progress = document.createElement("p");
+  progress.textContent = "Genocide progress · " +
+    (state.route.possible ? Math.max(0, REGION_QUOTA - state.route.kills[state.map]) +
+      " remaining here" : "Route closed") + " · " +
+    ["Frostbell", "Boonona", "Quiet Cove", "Sea Gate", "Tidal Halls", "Royal Halls"]
+      .map((name, index) => name + " " + Math.min(REGION_QUOTA, state.route.kills[index]) + "/20").join(" · ");
+  $("overlay").firstChild.append(progress);
+  if (state.route.possible && !hasQuota()) {
+    const hint = document.createElement("small");
+    hint.textContent = "Revisit connected rooms and walk to find more enemies before resolving the region’s bosses or leaving.";
+    $("overlay").firstChild.append(hint);
+  }
   panelButtons([["Back to exploring", closePanel, true]]);
 }
 
 function fresh() {
   return {
-    version: 2,
+    version: 3,
+    route: routeRecord(),
+    gold: 0,
+    gear: [],
+    equipment: { weapon: null, armor: null },
     room: "h0",
     visited: { h0: true },
     map: 0,
@@ -352,7 +582,7 @@ function readSave() {
     const s = JSON.parse(localStorage.getItem(SAVE_KEY));
     if (
       !s ||
-      ![1, 2].includes(s.version) ||
+      ![1, 2, 3].includes(s.version) ||
       !Number.isInteger(s.map) ||
       s.map < 0 ||
       s.map >= maps.length ||
@@ -370,9 +600,8 @@ function readSave() {
       !s.flags ||
       typeof s.flags !== "object" ||
       Array.isArray(s.flags) ||
-      !Number.isFinite(s.xp) ||
-      s.xp < 0 ||
-      s.xp > 1000
+      !Number.isSafeInteger(s.xp) ||
+      s.xp < 0
     )
       return null;
     for (const k of Object.keys(items))
@@ -387,7 +616,6 @@ function readSave() {
       !WORLD.rooms[s.room] ||
       WORLD.rooms[s.room].region !== s.map
     ) {
-      s.version = 2;
       s.room = WORLD.starts[s.map];
       s.x = 480;
       s.y = 350;
@@ -395,6 +623,21 @@ function readSave() {
     }
     if (!s.visited || typeof s.visited !== "object" || Array.isArray(s.visited))
       s.visited = { [s.room]: true };
+    if (s.version !== 3) {
+      s.route = routeRecord(s.map > 0 || s.xp > 0 || REQUIRED_BOSSES.some((id) => s.flags[id]));
+      s.gold = 0;
+      s.gear = [];
+      s.equipment = { weapon: null, armor: null };
+      s.version = 3;
+    }
+    if (!s.route || !Array.isArray(s.route.kills) || s.route.kills.length !== 6 ||
+        s.route.kills.some((kills) => !Number.isInteger(kills) || kills < 0) ||
+        !s.route.bosses || !Number.isSafeInteger(s.gold) || s.gold < 0 ||
+        !Array.isArray(s.gear) || !s.equipment) return null;
+    s.gear = s.gear.filter((id) => Object.hasOwn(GEAR, id));
+    for (const slot of ["weapon", "armor"])
+      if (!s.gear.includes(s.equipment[slot]) || GEAR[s.equipment[slot]]?.slot !== slot)
+        s.equipment[slot] = null;
     s.assist = !!s.assist;
     if (!Object.hasOwn(DIFFICULTIES, s.difficulty)) s.difficulty = "normal";
     return s;
@@ -402,8 +645,8 @@ function readSave() {
     return null;
   }
 }
-function save() {
-  if (mode !== "world" || dialogue || state.hp <= 0) return;
+function save(battleResult = false) {
+  if ((!battleResult && mode !== "world") || dialogue || state.hp <= 0) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   } catch {
@@ -583,7 +826,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ITEM consumes a healing turn. FLEE unlocks after dealing enough damage in normal encounters. Major bosses cannot be fled from, except your parents, who also have ACT.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -731,7 +974,30 @@ function inventory(inBattle = false) {
     row.append(label, b);
     $("overlay").firstChild.append(row);
   }
+  const stats = document.createElement("p");
+  stats.textContent = state.gold + " G · Level " + level() + " · " + state.xp +
+    " EXP · ATK " + (19 + attackBonus()) + " · DEF " + defense() +
+    " · Weapon: " + (GEAR[state.equipment.weapon]?.name || "None") +
+    " · Armor: " + (GEAR[state.equipment.armor]?.name || "None");
+  $("overlay").firstChild.append(stats);
+  if (!inBattle) for (const id of state.gear) {
+    const gear = GEAR[id];
+    const equipped = state.equipment[gear.slot] === id;
+    $("overlay").firstChild.append(button((equipped ? "Unequip " : "Equip ") +
+      gear.name + " (+" + gear.bonus + (gear.slot === "weapon" ? " ATK)" : " DEF)"), () => {
+        state.equipment[gear.slot] = equipped ? null : id;
+        save();
+        inventory();
+      }));
+  }
   panelButtons([["Back", closePanel, true]]);
+}
+function visibleNPCs(room) {
+  return room.npcs.filter(([, , , id]) => {
+    if (state.route.bosses.parents === "kill" && (id === "mama" || id === "parents"))
+      return false;
+    return !state.route.possible || !hasQuota() || (id !== "tula" && id !== "nim");
+  });
 }
 function activeObjects() {
   const m = currentRoom();
@@ -751,7 +1017,7 @@ function targets() {
     S: [480, 481],
   };
   return [
-    ...m.npcs.map((n) => ({
+    ...visibleNPCs(m).map((n) => ({
       kind: "npc",
       name: n[0],
       x: n[1],
@@ -764,6 +1030,7 @@ function targets() {
         {
           shrine: "Rest lantern",
           chest: "Supply chest",
+          shop: WORLD.shops[o[3]]?.name,
           fruit: "Boonona grove",
           boss: enemies[o[3]]?.name,
           cage: "Slippy",
@@ -825,7 +1092,7 @@ function interact() {
         ]);
         return;
       }
-      startBattle(n.id, n.id);
+      protectQuota(() => startBattle(n.id, n.id));
       break;
     case "shrine":
       state.hp = state.maxHp;
@@ -844,6 +1111,9 @@ function interact() {
         },
       );
       tone(587, 0.3);
+      break;
+    case "shop":
+      shop(n.id);
       break;
     case "chest":
       state.flags[n.id] = true;
@@ -897,10 +1167,12 @@ function interact() {
             : "Water blocks the way. Turn the sluice wheel in Floodworks.",
         ]);
       } else if (n.to && n.to !== "region") enterRoom(n.to, n.direction);
-      else exitMap();
+      else protectQuota(exitMap);
       break;
     case "cage":
-      if (!state.flags.king)
+      if (state.flags.slippyDefeated) ending();
+      else if (slippyPending()) confrontSlippy();
+      else if (!state.flags.king)
         say("SLIPPY", [
           "Flippy! You came! The King has the cage key. Please be careful!",
         ]);
@@ -919,12 +1191,19 @@ function interact() {
 }
 function talk(id) {
   if (WORLD.conversations[id]) {
+    if (state.route.possible && hasQuota()) {
+      say(id.toUpperCase(), ["Please pass through. Nobody here wants a fight."]);
+      return;
+    }
     if (!state.flags["gift-" + id]) {
       state.flags["gift-" + id] = true;
       if (id === "drift") state.inventory.soup++;
       else if (id === "moss") state.inventory.fish += 2;
     }
-    say(id.toUpperCase(), WORLD.conversations[id]);
+    const reaction = state.route.total
+      ? "News travels ahead of you. People here wonder which choices you’ll make next."
+      : state.route.spared ? "Word is you listen before you swing. That means something here." : null;
+    say(id.toUpperCase(), [...WORLD.conversations[id], ...(reaction ? [reaction] : [])]);
     return;
   }
   const f = state.flags;
@@ -962,7 +1241,7 @@ function talk(id) {
       say("PAPA", [
         "Find Slippy first, little one. Big plans deserve a good friend.",
       ]);
-    else startBattle("parents", "parents");
+    else protectQuota(() => startBattle("parents", "parents"));
   } else if (id === "pippy") {
     if (!f.pippy) {
       f.pippy = true;
@@ -992,6 +1271,10 @@ function signText() {
     "THRONE OF THE SEA\nRest here. Your next step is yours.",
   ][state.map];
 }
+function recordCrossing() {
+  if (!hasQuota() || (state.map === 0 && state.route.bosses.parents !== "kill"))
+    state.route.possible = false;
+}
 function exitMap() {
   const f = state.flags;
   if (state.map === 0) {
@@ -999,6 +1282,7 @@ function exitMap() {
       say("FLIPPY", ["I should talk to my parents before we leave."]);
       return;
     }
+    recordCrossing();
     changeMap(1);
     say("SLIPPY", [
       "Sand! Trees! Flippy, this place has colors I’ve never eaten before.",
@@ -1011,6 +1295,7 @@ function exitMap() {
       ]);
       return;
     }
+    recordCrossing();
     changeMap(2);
     f.captured = true;
     say(
@@ -1032,6 +1317,7 @@ function exitMap() {
       ]);
       return;
     }
+    recordCrossing();
     changeMap(3);
     say(
       "PIPPY",
@@ -1046,6 +1332,7 @@ function exitMap() {
       say("FLIPPY", ["Captain Undertow is blocking the sea gate."]);
       return;
     }
+    recordCrossing();
     changeMap(4);
     say("FLIPPY", [
       "Slippy’s in here somewhere. Two seals. One throne room. One friend to bring home.",
@@ -1057,6 +1344,7 @@ function exitMap() {
       ]);
       return;
     }
+    recordCrossing();
     changeMap(5);
     say("KING ORCA OF THE SEA", [
       "So the little penguin has arrived. Come closer, then. Let me see this courage everyone whispers about.",
@@ -1081,10 +1369,21 @@ function changeMap(index) {
 
 function ending() {
   mode = "world";
+  const outcome = state.route.ending ||= storyRoute();
   save();
-  panel(
-    '<div class="eyebrow">THE END · AND THE BEGINNING</div><h2>Some things are bigger<br>than the ocean.</h2><p>The King lowers his crown. For the first time, the throne room is quiet enough to hear a small voice.</p><p>“I only wanted a friend,” he says.</p><p>“Then ask,” Flippy answers. “You don’t have to take one.”</p><p>Pippy’s boat carries two little penguins home beneath a sky full of stars. There are boononas in the bag, stories to tell, and a place beside Flippy that will never be empty.</p><small>Thank you for playing all four chapters.<br>Original story adaptation, pixel art, and synthesized audio.<br>Expanded edition — your feedback shapes what comes next.</small>',
-  );
+  if (outcome === "pacifist") {
+    panel("<h2>Room for one more</h2><p>Slippy takes Flippy’s flipper. “You got through a whole kingdom without hurting anyone who stood in your way. You even listened to the King.”</p><p>The King leaves the hall to see Pippy’s boat off. He asks if he can join them for lunch one day. This time, he waits for the answer.</p>");
+  } else if (outcome === "genocide") {
+    panel("<h2>No one on the shore</h2><p>The snow settles on two sets of tracks. Only one set leads out of the throne room.</p><p>Flippy reaches the dock and looks for the little boat. The wind moves across the sea. No one calls his name.</p>");
+  } else {
+    const throne = state.route.bosses.king === "kill"
+      ? "<p>Flippy opens the cage. Slippy takes his flipper. “Let’s go home,” he says, looking back at the crown on the floor.</p>"
+      : "<p>The King lowers his crown. “I only wanted a friend,” he says.</p><p>“Then ask,” Flippy answers. “You don’t have to take one.”</p>";
+    panel('<div class="eyebrow">THE END · AND THE BEGINNING</div>' +
+      "<h2>Some things are bigger<br>than the ocean.</h2>" + throne +
+      "<p>Pippy’s boat carries two little penguins home beneath a sky full of stars. There are boononas in the bag, stories to tell, and a place beside Flippy that will never be empty.</p>" +
+      "<small>Thank you for playing all four chapters.<br>Original story adaptation, pixel art, and synthesized audio.</small>");
+  }
   panelButtons([
     [
       "Keep exploring",
@@ -1099,7 +1398,7 @@ function ending() {
 }
 // Battle phases: choice → strike → dodge → choice, or result.
 function startBattle(type, id) {
-  if (mode !== "world") return;
+  if (mode !== "world" || (enemies[type].boss && state.flags[id])) return;
   state.encounterRooms = 0;
   state.encounterSteps = 0;
   save();
@@ -1113,7 +1412,8 @@ function startBattle(type, id) {
     hp: data.hp,
     maxHp: data.hp,
     phase: "choice",
-    message: data.intro,
+    message: data.intro + (data.boss && type !== "slippy" && state.route.possible && hasQuota()
+      ? " “I heard the halls go quiet. I know what you came for.”" : ""),
     turn: 0,
     acts: 0,
     damageDealt: 0,
@@ -1129,7 +1429,7 @@ function startBattle(type, id) {
     phaseTime: 0,
     spawnTime: 0,
     marker: 0,
-    checkpoint: { x: state.x, y: state.y },
+    checkpoint: structuredClone(state),
     done: null,
   };
   $("battleControls").hidden = false;
@@ -1162,7 +1462,9 @@ function battleUI() {
         battleUI();
       }),
     );
-    a.append(button("ITEM", () => inventory(true)));
+    const spareButton = button("SPARE", spare);
+    spareButton.classList.toggle("spare-ready", Boolean(battle.spareable));
+    a.append(button("ACT", actMenu), button("ITEM", () => inventory(true)), spareButton);
     const flee = button(
       fleeAllowed()
         ? fleeUnlocked()
@@ -1174,8 +1476,7 @@ function battleUI() {
       },
     );
     flee.disabled = !fleeUnlocked();
-    a.append(flee);
-    if (battle.parents) a.append(button("ACT", act));
+    if (fleeAllowed()) a.append(flee);
   } else if (battle.phase === "strike")
     a.append(button("STRIKE · E / SPACE", finishStrike, true));
   else if (battle.phase === "dodge") {
@@ -1185,21 +1486,11 @@ function battleUI() {
   } else if (battle.phase === "result")
     a.append(button("Continue →", () => battle.done(), true));
 }
-function act() {
-  if (battle.phase !== "choice") return;
-  battle.acts++;
-  battle.message =
-    battle.acts === 1
-      ? "“I’m scared, too. But I want to see the world with Slippy.” Your parents listen."
-      : "“We’ll take care of each other.” Your parents step aside. FLEE is now unlocked.";
-  tone(523, 0.2);
-  beginDodge();
-}
 function finishStrike() {
   if (!battle || battle.phase !== "strike" || !$("overlay").hidden) return;
   const accuracy = 1 - Math.abs(battle.marker - 0.5) * 2;
   const damage = Math.round(
-    19 + accuracy * 22 + Math.min(8, Math.floor(state.xp / 4)),
+    19 + accuracy * 22 + attackBonus(),
   );
   battle.hp = Math.max(0, battle.hp - damage);
   battle.damageDealt += damage;
@@ -1238,7 +1529,7 @@ function beginDodge() {
         : b.hp / b.maxHp < 0.65
           ? 2
           : 1;
-  b.duration = b.parents ? 6.8 : b.boss ? 8.2 + (b.phaseLevel - 1) * 0.9 : 7.2;
+  b.duration = b.type === "slippy" ? 9.5 + b.phaseLevel : b.parents ? 6.8 : b.boss ? 8.2 + (b.phaseLevel - 1) * 0.9 : 7.2;
   chooseAttack(b);
   b.heart = { x: 480, y: 425 };
   b.invulnerable = 0.8;
@@ -1248,31 +1539,52 @@ function beginDodge() {
     ": " +
     ATTACKS[b.attack].hint +
     (b.phaseLevel >= 2 ? " The pattern will change halfway through." : "");
+  if (b.type === "slippy" && b.lastPhase !== b.phaseLevel) {
+    b.lastPhase = b.phaseLevel;
+    b.message += ["", " “I don’t want to do this.”", " “There’s nowhere left to run.”", " “Remember Lantern Square? I wish I could.”"][b.phaseLevel];
+  }
   keys.clear();
   battleUI();
 }
 
 function finishBattle(outcome) {
   const b = battle;
+  if (!b || b.phase === "result") return;
   b.phase = "result";
   b.bullets = [];
   b.hazards = [];
   keys.clear();
-  if (outcome === "win") {
-    state.flags[b.id] = true;
-    state.xp += b.xp;
-    state.inventory.fish++;
-    if (b.boss) state.inventory.soup++;
-    b.message = b.parents
-      ? "Your parents see your determination. The eastern dock is open."
-      : b.type === "king"
-        ? "The King’s crown falls silent. You found the cage key. Go to Slippy!"
-        : "Victory! You found a silver fish" +
-          (b.boss ? " and a jar of soup." : ".");
+  if (outcome === "win" || outcome === "spare") {
+    const killed = outcome === "win";
+    const reward = b.boss ? 42 + b.xp * 10 : (killed ? 13 : 10) + b.xp * 3;
+    const xp = killed ? b.xp : 0;
+    if (b.boss) state.flags[b.id] = true;
+    state.gold += reward;
+    state.xp += xp;
+    if (killed) {
+      state.route.total++;
+      if (!b.boss) state.route.kills[state.map]++;
+    } else state.route.spared++;
+    if (b.boss) state.route.bosses[b.type] = killed ? "kill" : "spare";
+    if (!killed || (b.boss && !hasQuota())) state.route.possible = false;
+    if (b.type === "slippy") {
+      state.flags.ending = true;
+      state.route.ending = "genocide";
+    }
+    if (killed) {
+      state.inventory.fish = Math.min(999, state.inventory.fish + 1);
+      if (b.boss) state.inventory.soup = Math.min(999, state.inventory.soup + 1);
+    }
+    b.message = (killed ? "Victory! You earned " : "You spared " + b.name + "! You earned ") +
+      reward + " G" + (xp ? " and " + xp + " EXP" : "") + ".";
+    if (!b.boss && state.route.possible && hasQuota())
+      b.message += " The next footsteps are yours alone. But nobody came.";
     tone(659, 0.4);
   } else if (outcome === "flee") {
-    if (b.parents) state.flags.parents = true;
-    else state.flags[b.id] = true;
+    if (b.parents) {
+      state.flags.parents = true;
+      state.route.bosses.parents = "flee";
+    }
     b.message = b.parents
       ? "Your parents step aside. “Be brave. Be kind. Come home.”"
       : "You slip past while the enemy catches its breath.";
@@ -1280,13 +1592,13 @@ function finishBattle(outcome) {
     b.message =
       "Even the bravest flippers need another chance. Retry with full health; your supplies from before this battle return.";
   }
+  if (outcome !== "lose") save(true);
   b.done = () => {
     if (battle !== b) return;
     if (outcome === "lose") {
       const assist = state.assist;
       const difficulty = state.difficulty;
-      const saved = readSave();
-      if (saved) state = saved;
+      state = b.checkpoint;
       state.assist = assist;
       state.difficulty = difficulty;
       state.hp = state.maxHp;
@@ -1299,32 +1611,41 @@ function finishBattle(outcome) {
     closePanel();
     updateHud();
     save();
-    if (outcome !== "lose") {
-      if (b.parents)
-        say("MAMA & PAPA", [
-          "We can’t keep you little forever. Take care of Slippy, and let him take care of you.",
-          "The eastern dock is ready. Your story belongs to you now.",
-        ]);
-      else if (b.type === "baby")
-        say("BABY ORCA", [
-          "All right! You’re tougher than you look. The current is yours.",
-          "…If you see my dad, tell him I’m not ready to come home yet.",
-        ]);
-      else if (b.type === "gate")
-        say("CAPTAIN UNDERTOW", [
-          "Nobody has crossed this gate for a friend before. I hope you find yours.",
-        ]);
-      else if (b.type === "key1" || b.type === "key2")
-        say("FLIPPY", [
-          b.type === "key1"
-            ? "The pearl seal. Smooth and warm, like a promise."
-            : "The tide seal. One step closer to Slippy.",
-        ]);
-      else if (b.type === "king")
-        say("KING ORCA", [
-          "You could have turned back. Every time. And still you came.",
-          "Take the key. I… have much to learn about friendship.",
-        ]);
+    if (b.type === "slippy" && outcome === "win") {
+      ending();
+      return;
+    }
+    if (b.type === "king" && slippyPending()) {
+      confrontSlippy();
+      return;
+    }
+    if (outcome === "spare" && b.boss) {
+      const farewell = {
+        parents: "We trust you to look after each other. The eastern dock is open.",
+        baby: "Can we play again after lunch? I’ll show you where the current goes.",
+        gate: "I’ll tell the sentries to let you through. Bring your friend home.",
+        key1: "Take the pearl seal. Thank you for leaving the light with me.",
+        key2: "Take my seal with the tide. I’ll keep watch here.",
+        king: "Take the key. Let Slippy decide where he belongs.",
+      };
+      say(b.name, [farewell[b.type]]);
+      return;
+    }
+    if (outcome === "flee" && b.parents) {
+      say("MAMA & PAPA", [
+        "We can’t keep you little forever. Take care of Slippy, and let him take care of you.",
+        "The eastern dock is ready. Your story belongs to you now.",
+      ]);
+    } else if (outcome === "win" && b.boss) {
+      const aftermath = {
+        parents: "Home feels different now. The eastern dock is open.",
+        baby: "The beach has gone quiet. I can reach the eastern current now.",
+        gate: "The captain’s harpoon lies on the stone. The sea gate is open.",
+        key1: "The pearl seal. Smooth and warm, like a promise.",
+        key2: "The tide seal. One step closer to Slippy.",
+        king: "The crown lies beside a little key. I can open Slippy’s cage.",
+      };
+      say("FLIPPY", [aftermath[b.type]]);
     }
   };
   battleUI();
@@ -1336,6 +1657,11 @@ function bullet(x, y, vx, vy, r = 6, kind = "orb", extra = {}) {
 const arena = { x: 248, y: 307, w: 464, h: 226 };
 const ATTACKS = Object.fromEntries(
   [
+    ["slippy.warning", "Frozen Warning", "Move out of the lane, then watch the falling ice.", 0.80],
+    ["slippy.skate", "Skating Edge", "Keep clear of the marked strip.", 0.92],
+    ["slippy.whiteout", "Whiteout", "Follow the gap through the moving wall.", 0.76],
+    ["slippy.crosswind", "Crosswind", "The ice flashes before both lanes strike.", 0.97],
+    ["slippy.lastlight", "Last Light on the Ice", "Find the narrow gap and listen for the next warning.", 0.70],
     ["snowcrab.claws", "Pincer Trap", "Leave the marked claw lanes.", 1.05],
     [
       "snowcrab.snow",
@@ -1560,7 +1886,10 @@ const movePools = Object.fromEntries(
 );
 
 function chooseAttack(b) {
-  const pool = movePools[b.type];
+  const pool = b.type === "slippy"
+    ? movePools.slippy.slice(b.phaseLevel === 1 ? 0 : b.phaseLevel === 2 ? 1 : 2,
+      b.phaseLevel === 1 ? 2 : b.phaseLevel === 2 ? 4 : 5)
+    : movePools[b.type];
   let choices = pool.filter((p) => !b.recent.includes(p));
   if (!choices.length) choices = pool.filter((p) => p !== b.recent.at(-1));
   const selected = choices[Math.floor(Math.random() * choices.length)];
@@ -1569,7 +1898,10 @@ function chooseAttack(b) {
   b.attack = selected;
   b.attackHistory.push(selected);
   b.secondary =
-    pool.find((p) => p !== selected && p !== b.recent[0]) || pool[0];
+    pool.find((p) => p !== selected && p !== b.recent[0]) ||
+    pool.find((p) => p !== selected);
+  if (b.type === "slippy" && b.phaseLevel === 3 && selected !== "slippy.lastlight")
+    b.secondary = "slippy.lastlight";
 }
 function hazard(kind, x, y, w, h, warning = 0.85, duration = 0.32) {
   const item = {
@@ -1598,7 +1930,7 @@ function spawnPattern(pattern = battle.attack) {
     n = b.volley,
     rate = state.assist ? 0.7 : 1,
     speed =
-      (b.parents ? 76 : b.boss ? 145 : 113) *
+      (b.type === "slippy" ? 185 : b.parents ? 76 : b.boss ? 145 : 113) *
       (1 + (b.phaseLevel - 1) * 0.11) *
       rate,
     L = a.x,
@@ -2024,6 +2356,48 @@ function spawnPattern(pattern = battle.attack) {
         );
       break;
     }
+    case "slippy.warning": {
+      const x = L + 45 + (n * 73) % (a.w - 90);
+      hazard("beam", x, T, 32, a.h, 0.72, 0.23);
+      for (let i = 0; i < 5; i++)
+        bullet(L + 30 + i * 93, T - 10, (i - 2) * 12, speed, 6, "shard");
+      break;
+    }
+    case "slippy.skate": {
+      const side = n % 2 === 0;
+      const y = T + 18 + (n * 31) % (a.h - 64);
+      hazard("rush", L, y, a.w, 22, 0.74, 0.27);
+      aim(side ? L - 8 : R + 8, y, 4, 0.17, "snow");
+      break;
+    }
+    case "slippy.whiteout": {
+      const gap = T + 40 + (n * 47) % (a.h - 80);
+      const side = n % 2 === 0;
+      for (let y = T + 10; y < B; y += 19)
+        if (Math.abs(y - gap) > 30)
+          bullet(side ? L - 9 : R + 9, y, speed * (side ? 1 : -1), 0, 6, "shard");
+      if (n % 2 === 0) burst(L + 100 + n * 59 % 260, T + 60, 7, 0.66, "snow");
+      break;
+    }
+    case "slippy.crosswind": {
+      const x = L + 60 + (n * 83) % (a.w - 120);
+      const y = T + 26 + (n * 67) % (a.h - 64);
+      hazard("beam", x, T, 28, a.h, 0.73, 0.23);
+      hazard("rush", L, y, a.w, 20, 0.73, 0.23);
+      aim(R + 6, T + 30, 3, 0.21, "snow");
+      break;
+    }
+    case "slippy.lastlight": {
+      const gap = L + 60 + (n * 71) % (a.w - 120);
+      for (let x = L + 10; x < R; x += 23)
+        if (Math.abs(x - gap) > 36)
+          bullet(x, T - 9, 0, speed * 1.12, 6, "shard");
+      if (n % 2 === 0) {
+        const y = T + 34 + (n * 43) % (a.h - 90);
+        hazard("rush", L, y, a.w, 20, 0.83, 0.23);
+      } else burst(gap, T + 45, 8, 0.74, "snow");
+      break;
+    }
     default:
       throw Error("Unknown attack " + pattern);
   }
@@ -2036,7 +2410,7 @@ function hitHeart() {
   state.hp = Math.max(
     0,
     state.hp -
-      Math.ceil((b.damage + (b.phaseLevel - 1) * 2) * (state.assist ? 0.5 : 1)),
+      Math.max(1, Math.ceil((b.damage + (b.phaseLevel - 1) * 2 - defense()) * (state.assist ? 0.5 : 1))),
   );
   b.invulnerable = state.assist ? 0.9 : 0.62;
   b.shake = 0.2;
@@ -2088,7 +2462,7 @@ function updateBattle(dt) {
   const interval =
     ATTACKS[pattern].interval *
     (state.assist ? 1.35 : 1) *
-    (b.phaseLevel === 3 ? 0.87 : 1);
+    (b.phaseLevel === 3 ? 0.87 : 1) * (b.annoyed ? 0.92 : 1);
   if (
     b.phaseTime > 0.8 &&
     b.spawnTime > interval &&
@@ -2199,6 +2573,7 @@ function updateBattle(dt) {
   );
   if (b.phaseTime >= b.duration) {
     b.phase = "choice";
+    b.annoyed = false;
     b.bullets = [];
     b.hazards = [];
     b.message =
@@ -2266,6 +2641,10 @@ function countEncounterRoom() {
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
 function updateWalkingEncounters(walkingSeconds) {
   if (mode !== "world" || dialogue || !$("overlay").hidden) return;
+  if (slippyPending()) {
+    if (walkingSeconds > 0) confrontSlippy();
+    return;
+  }
   const room = currentRoom();
   const boss = activeObjects().find(
     (o) =>
@@ -2273,11 +2652,20 @@ function updateWalkingEncounters(walkingSeconds) {
       Math.hypot(state.x - o[1], state.y - o[2]) < 65 &&
       (o[3] !== "baby" || fruitCount() >= 3),
   );
-  if (boss) {
+  // During a partial quota, the interaction prompt lets the player defer this fight.
+  if (boss && (!state.route.possible || hasQuota() || state.route.kills[state.map] === 0)) {
     startBattle(boss[3], boss[3]);
     return;
   }
+  const exhausted = state.route.possible && hasQuota();
   if (walkingSeconds <= 0 || !(state.encounterRooms >= 5)) return;
+  if (exhausted) {
+    if (!state.flags["empty-" + state.map]) {
+      state.flags["empty-" + state.map] = true;
+      say("FLIPPY", ["But nobody came."]);
+    }
+    return;
+  }
   const walked = Number.isFinite(state.encounterSteps)
     ? Math.max(0, state.encounterSteps)
     : 0;
@@ -2505,7 +2893,10 @@ function creature(type, x, y, scale = 1) {
   ctx.translate(x, y);
   ctx.scale(scale, scale);
   const c = enemies[type]?.color || "#b9cbd0";
-  if (type === "parents") {
+  if (type === "slippy") {
+    glow(0, -17, 45, "#98cced66");
+    penguin(0, 0, "#a5cddd", true);
+  } else if (type === "parents") {
     penguin(-24, 0, "#c5b5db");
     penguin(26, 0, "#bdcdd9");
   } else if (["king", "baby", "gate", "guard", "key1", "key2"].includes(type)) {
@@ -2764,6 +3155,12 @@ function object(o) {
   const [t, x, y, id] = o;
   if (t === "boss") {
     creature(id, x, y + Math.sin(time * 2) * 2);
+    return;
+  }
+  if (t === "shop") {
+    rect(x - 22, y - 23, 44, 23, "#536576");
+    rect(x - 25, y - 28, 50, 6, "#c1a26e");
+    text("G", x, y - 8, 12, "#f4dfa2", "center");
     return;
   }
   if (t === "journal") {
@@ -3050,7 +3447,7 @@ function drawWorld() {
   const actors = [
     ...m.props.map((p) => ({ y: p[2], draw: () => prop(p) })),
     ...activeObjects().map((o) => ({ y: o[2], draw: () => object(o) })),
-    ...m.npcs.map((n) => ({
+    ...visibleNPCs(m).map((n) => ({
       y: n[2],
       draw: () =>
         n[0] === "Pebble" || n[0] === "Nim"
@@ -3078,7 +3475,7 @@ function drawWorld() {
     state.y,
     600,
   );
-  shade.addColorStop(0, "#081a2800");
+  shade.addColorStop(0, state.route.possible && hasQuota() ? "#081a2833" : "#081a2800");
   shade.addColorStop(
     1,
     cave ? "#081321aa" : indoor ? "#08152588" : "#0b25433c",
@@ -3186,7 +3583,7 @@ function drawBattle() {
     rect((i * 149) % W, 35 + ((i * 53) % 220), 2, 2, "#49728a");
   }
   text(currentRoom().name.toUpperCase(), 35, 34, 11, "#83a6b7");
-  text(b.name, 480, 64, 23, "#eee2bf", "center");
+  text(b.name, 480, 64, 23, b.spareable ? "#ffe66d" : "#eee2bf", "center");
   const king = b.type === "king";
   glow(480, 180, 210, b.phaseLevel === 3 ? "#c17ea129" : "#82bacb1f");
   for (let i = 0; i < 6; i++) {
@@ -3418,7 +3815,9 @@ function tick(now) {
       if (musicTick > 0.65) {
         musicTick = 0;
         const notes =
-          mode === "battle"
+          battle?.type === "slippy"
+            ? [147, 220, 175, 165, 147, 294, 233, 139]
+            : mode === "battle"
             ? [196, 233, 294, 233, 174, 220, 261, 220]
             : [261, 329, 392, 329, 293, 349, 440, 349];
         tone(notes[musicStep++ % notes.length], 0.55, "sine", 0.018);

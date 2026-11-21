@@ -24,13 +24,13 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 - FIGHT: stop the marker near the center for a strong hit, then move the heart to dodge until the attack timer ends (about 7 seconds for regular enemies, 8–10 seconds for bosses).
 - ITEM: consume food and take an enemy attack turn.
 - FLEE: locked until 28% of the enemy's original health has been dealt as damage. Major bosses cannot be fled from, except the parents.
-- ACT appears only in the parents' tutorial. Two conversations unlock FLEE without dealing damage. There is no MERCY action.
+- ACT offers enemy-specific options. When the enemy’s name turns yellow, SPARE resolves the battle peacefully and awards Gold. Two successful ACT choices in the parents’ tutorial also unlock FLEE.
 - Sound starts off; its button enables the original generated melody and effects.
 - Assist mode reduces projectile speed, increases heart speed, and reduces damage without changing the story.
 
 Rest lanterns restore full health, save the game, and provide one fish if the entire inventory is empty. Chests and battle rewards supply additional food. Defeat returns you to the exploration checkpoint before that battle, restores consumed supplies and health, and guarantees at least two fish.
 
-Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Only exploration state is saved; reloading during combat resumes the previous exploration checkpoint.
+Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Reloading during an unresolved battle resumes the exploration checkpoint. Resolved rewards and boss outcomes are saved when the result is shown.
 
 ## Expanded world and combat
 
@@ -51,6 +51,14 @@ Bosses have substantially increased health and damage. Below 65% health, they ch
 
 Regular enemies appear automatically after a few steps (90 world pixels) in every fifth room entered. Backtracking and chapter crossings count. Homes, villages, shops, rest areas, boss chambers, and royal halls all allow these encounters. There is no timer or E prompt. A pending encounter carries forward if you leave before taking enough steps. Idle time, blocked movement, dialogue, and menus do not advance the steps. Each battle resets the five-room count. Progress is included in saves. Bosses begin when approached, with story requirements preserved. All four chapters, including the ending, are available. This expanded edition is intended for story, art, controls, and difficulty feedback.
 
+## Routes and shops
+
+- **Neutral** follows the rescue story with reactions to your battle outcomes.
+- **Pacifist** requires peaceful resolutions for the story bosses and zero kills. You can avoid or flee optional encounters.
+- **Genocide** requires 20 regular kills in each of the six regions before resolving that region’s bosses or leaving. Spare any opponent or pass a required gate early and the route closes. Exhausted regions no longer spawn regular encounters while the route is open. Track progress in the map journal. A fully qualifying run unlocks Slippy after King Orca.
+
+Battle victories award Gold and EXP. Sparing awards Gold. Shops in all six regions sell the original food and progressively stronger weapons and armor. Open the Bag outside of battle to equip or remove one weapon and one armor piece.
+
 ## Validation
 
 ```sh
@@ -65,7 +73,7 @@ If Chromium is already installed, use its executable instead of downloading a br
 CHROMIUM_EXECUTABLE=/usr/bin/chromium npm test
 ```
 
-The test server uses port 18084. Eight browser tests cover all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
+The test server uses port 18084. Browser tests cover routes, mercy, shops, persistent rewards, all 48 rooms’ connectivity and reachable targets, safe doorway arrivals, switch locks, the complete four-chapter story and ending, ACT/FLEE rules, attack variation, boss phase escalation, warning versus active hazard damage, inventory, defeat recovery, old-save migration, current save/reload, mobile movement/layout, and asset exposure. Story progression tests accelerate combat turns; they verify progression rather than final difficulty balance.
 
 Manual smoke test: meet Slippy in Lantern Square, return home, use ACT twice in the parents’ battle, dodge each attack, then FLEE and follow the forest road to the harbor. Visit the grotto and ring the winter bell. Open M to check room connections. Save at a lantern, reload, and Continue. On a touch device, check the direction pad, doorway interaction, dialogue, strike timing, and item menu. Optional audio requires a user gesture and browser Web Audio support.
 
