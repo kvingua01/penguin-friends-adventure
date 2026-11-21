@@ -28,7 +28,7 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 - Sound starts off; its button enables the original generated melody and effects.
 - Assist mode reduces projectile speed, increases heart speed, and reduces damage without changing the story.
 
-Rest lanterns restore full health, save the game, and provide one fish if the entire inventory is empty. Chests and battle rewards supply additional food. Defeat returns you to the exploration checkpoint before that battle, restores consumed supplies and health, and guarantees at least two fish.
+Rest lanterns restore full health and save the game. Defeat returns you to the pre-battle exploration checkpoint and restores its supplies and health. Mama sells all food beyond the starting provisions.
 
 Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Reloading during an unresolved battle resumes the exploration checkpoint. Resolved rewards and boss outcomes are saved when the result is shown.
 
@@ -45,7 +45,7 @@ Bosses have substantially increased health and damage. Below 65% health, they ch
 ## Story route
 
 1. **Frostbell Island:** meet Slippy in Lantern Square, return home to challenge the parents (ACT or FIGHT, then FLEE or win), follow the forest road through Windbreak Ridge, and leave from Frostbell Harbor.
-2. **Boonona Bay:** gather fruit at Sunleaf Grove, Singing Falls, and Golden Orchard, defeat Baby Orca at Breakwater Beach, and follow the eastern current.
+2. **Boonona Bay:** mark Sunleaf Grove, Singing Falls, and Golden Orchard in the journal, defeat Baby Orca at Breakwater Beach, and follow the eastern current.
 3. **Quiet Cove / Sea Gate:** Slippy is captured. Ask Pippy for help, sail to the gate, defeat Captain Undertow, and enter the kingdom.
 4. **Tidal Halls / Throne Room:** defeat the Pearl and Tide wardens, use both seals to enter the throne room, defeat King Orca, and free Slippy from the cage for the ending.
 
@@ -57,7 +57,7 @@ Regular enemies appear automatically after a few steps (90 world pixels) in ever
 - **Pacifist** requires peaceful resolutions for the story bosses and zero kills. You can avoid or flee optional encounters.
 - **Genocide** requires 20 regular kills in each of the six regions before resolving that region’s bosses or leaving. Spare any opponent or pass a required gate early and the route closes. Exhausted regions no longer spawn regular encounters while the route is open. Track progress in the map journal. A fully qualifying run unlocks Slippy after King Orca.
 
-Battle victories award Gold and EXP. Sparing awards Gold. Shops in all six regions sell the original food and progressively stronger weapons and armor. Open the Bag outside of battle to equip or remove one weapon and one armor piece.
+Battle victories award Gold and EXP. Sparing awards Gold. Mama’s Pantry is the only shop for food, weapons, and armor. Talk to Mama at home, or use the order button in the map journal after leaving Frostbell. The order book also remains available if Mama is gone. Stronger gear unlocks as you advance. Open the Bag outside of battle to equip or remove one weapon and one armor piece.
 
 ## Validation
 

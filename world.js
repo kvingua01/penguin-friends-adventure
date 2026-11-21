@@ -5,9 +5,9 @@ window.PENGUIN_WORLD = (() => {
   const starts = ["h0", "b0", "c0", "g0", "k0", "t0"];
   const notes = {
     h0: "A little home, a big horizon. Slippy waits east in Lantern Square.",
-    h1: "The forest road runs east to the harbor. Home is west. Moss’s shop is north; the frozen lake is south.",
+    h1: "The forest road runs east to the harbor. Home is west. Moss’s cabin is north; the frozen lake is south.",
     h2: "Tall trees shelter the old route. North: Crystal Grotto. East: Windbreak Ridge.",
-    h3: "Moss keeps extra supplies for travelers. A thoughtful gift can be more useful than a shiny coin.",
+    h3: "Moss knows the trails. Mama sells food and gear at home.",
     h4: "The lake remembers every footstep until the next snowfall.",
     h5: "East: the watchtower and harbor. South: the last warm camp.",
     h6: "Ring the old bell. People at the lake say it has been silent for years.",
@@ -22,13 +22,13 @@ window.PENGUIN_WORLD = (() => {
     b5: "Waterfall fruit grows sweeter than the rest. At least, that is what the waterfall says.",
     b6: "The ocean once filled these ruins. The walls still hum when the tide turns.",
     b7: "The final grove. Baby Orca waits beyond the eastern shore.",
-    b8: "Take a breath before the eastern beach. Stock up and save your journey.",
+    b8: "Take a breath before the eastern beach. Rest at the lantern and save your journey.",
     b9: "BABY ORCA’S BEACH · Strong currents ahead. A splash is only the beginning.",
     c0: "Slippy was taken east. Look for a sailor along the broken coast.",
     c1: "The wreck came from the kingdom. Someone scratched “not every orca agrees” into the wood.",
     c2: "Even the deepest cave has a sound that leads outside.",
-    c3: "Pippy’s dock is east. A quiet market survives to the south.",
-    c4: "The merchant leaves food for anyone with a friend to find.",
+    c3: "Pippy’s dock is east. Drift keeps watch to the south.",
+    c4: "Drift watches the boats and listens for news from the kingdom.",
     c5: "PIPPY’S FERRY · Sea Gate passage. Speak to the captain before boarding.",
     g0: "The kingdom rises from the sea like a storm that learned to stand still.",
     g1: "The stairway branches north to the cliffs and east to the barracks.",
@@ -75,7 +75,7 @@ window.PENGUIN_WORLD = (() => {
     ["h0", "Flippy’s Home", 0, 0, 1, "snowhome"],
     ["h1", "Lantern Square", 0, 1, 1, "village"],
     ["h2", "Whisperpine Trail", 0, 2, 1, "forest"],
-    ["h3", "Moss’s Supply Nook", 0, 1, 0, "cabin"],
+    ["h3", "Moss’s Cabin", 0, 1, 0, "cabin"],
     ["h4", "Mirrorfrost Lake", 0, 1, 2, "lake"],
     ["h5", "Windbreak Ridge", 0, 3, 1, "ridge"],
     ["h6", "Crystal Grotto", 0, 2, 0, "icecave"],
@@ -296,7 +296,6 @@ window.PENGUIN_WORLD = (() => {
                 : "reef";
       r.enemies.push([enemy, "room-enemy-" + r.id, 600, 315]);
     }
-    if (i % 5 === 0) r.objects.push(["chest", 260, 375, "room-chest-" + r.id]);
   }
   function npc(id, ...n) {
     rooms[id].npcs.push(n);
@@ -361,18 +360,9 @@ window.PENGUIN_WORLD = (() => {
   rooms.c5.props.push(["boat", 780, 425]);
   rooms.g5.props.push(["tower", 730, 160]);
   rooms.t3.props.push(["throne", 700, 235]);
-  const shops = {
-    h3: { name: "Moss’s Outfitter", gear: ["stick", "scarf"] },
-    b1: { name: "Boonona Market", gear: ["stick", "scarf"] },
-    c4: { name: "Quiet Cove Trading Post", gear: ["dagger", "vest"] },
-    g0: { name: "Sea Gate Provision Stand", gear: ["dagger", "vest"] },
-    k1: { name: "Pebble’s Supply Shelf", gear: ["sword", "armor"] },
-    t0: { name: "Royal Halls Supply Post", gear: ["sword", "armor"] },
-  };
-  for (const id of Object.keys(shops)) obj(id, "shop", 310, 290, id);
   const conversations = {
     moss: [
-      "You’re heading out? Brave little flippers. Have a fish on the house.",
+      "You’re heading out? Brave little flippers. Mama can get you ready for the road.",
       "The world is bigger than this village. Remember the people who make it feel like home.",
     ],
     tula: [
@@ -381,7 +371,7 @@ window.PENGUIN_WORLD = (() => {
     ],
     drift: [
       "The King took a little penguin through here. He kept saying his friend would come.",
-      "Take this soup. You look like someone who has a promise to keep.",
+      "You look like someone who has a promise to keep. Follow the coast to Pippy’s dock.",
     ],
     nim: [
       "I heard Slippy through the wall. They moved him toward the throne room.",
@@ -413,5 +403,5 @@ window.PENGUIN_WORLD = (() => {
       );
     });
   }
-  return { rooms, starts, conversations, shops };
+  return { rooms, starts, conversations };
 })();

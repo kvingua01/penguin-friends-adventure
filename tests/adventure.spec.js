@@ -634,10 +634,8 @@ test("shopping, equipment, and battle results persist without duplicate rewards"
   await begin(page);
   await page.evaluate(() => {
     state.gold = 100;
-    changeMap(0);
-    enterRoom("h3", "N");
   });
-  await interactWith(page, "h3");
+  await interactWith(page, "mama");
   const stick = page.locator(".item").filter({ hasText: "Wooden Stick" });
   await stick.getByRole("button").click();
   await expect(stick.getByRole("button")).toBeDisabled();
@@ -666,7 +664,7 @@ test("shopping, equipment, and battle results persist without duplicate rewards"
   expect(loaded).toEqual({ ...saved, mode: "world", atk: 3, def: 3, outcome: "kill" });
 });
 
-test("version 2 saves migrate without invented history and preserve ordinary supplies", async ({ page }) => {
+test("version 2 saves preserve inventory and story without restoring removed chests", async ({ page }) => {
   await begin(page);
   const migrated = await page.evaluate(() => {
     const old = fresh();
@@ -693,6 +691,43 @@ test("version 2 saves migrate without invented history and preserve ordinary sup
     flags: { parents: true },
     route: { possible: false, legacy: true, kills: [0, 0, 0, 0, 0, 0], total: 0,
       spared: 0, bosses: {}, ending: null },
-    chests: true, rests: true, storage: false,
+    chests: false, rests: true, storage: false,
   });
+});
+
+test("Mama alone sells additional food, including through her order book later in the story", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => {
+    state.inventory = { fish: 0, boonona: 0, soup: 0 };
+    state.gold = 100;
+    state.hp = 45;
+  });
+  await interactWith(page, "rest-h0");
+  expect(await page.evaluate(() => state.hp)).toBe(120);
+  await go(page, "h3");
+  await interactWith(page, "moss");
+  await page.evaluate(() => {
+    startBattle("snowcrab", "walking-encounter");
+    finishBattle("win");
+    battle.done();
+    startBattle("snowcrab", "walking-encounter");
+    state.hp = 0;
+    finishBattle("lose");
+    battle.done();
+    changeMap(1);
+  });
+  await go(page, "b2");
+  await interactWith(page, "fruit1");
+  expect(await page.evaluate(() => ({ inventory: state.inventory, groves: fruitCount() })))
+    .toEqual({ inventory: { fish: 0, boonona: 0, soup: 0 }, groves: 1 });
+  await page.evaluate(() => {
+    changeMap(5);
+    state.route.bosses.parents = "kill";
+  });
+  await page.keyboard.press("m");
+  await page.getByRole("button", { name: "Order from Mama’s Pantry" }).click();
+  await expect(page.getByRole("heading", { name: "Mama’s Pantry" })).toBeVisible();
+  await expect(page.getByText("Arctic Armor", { exact: false })).toBeVisible();
+  await page.locator(".item").filter({ hasText: "Silver fish" }).getByRole("button").click();
+  expect(await page.evaluate(() => readSave().inventory.fish)).toBe(1);
 });

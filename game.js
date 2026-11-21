@@ -162,13 +162,17 @@ function attackBonus() {
 function defense() {
   return Math.floor((level() - 1) / 3) + gearBonus("armor");
 }
-function shop(id) {
-  const location = WORLD.shops[id];
-  const abandoned = state.route.possible && hasQuota();
-  panel("<h2>" + location.name + "</h2><p>" + state.gold + " G · " +
-    (abandoned ? "The keeper has left. A price list and payment box are still here." :
-      "Food and gear for the road.") + "</p>");
-  for (const key of [...Object.keys(items), ...location.gear]) {
+function mamaShop() {
+  if (mode !== "world" || dialogue) return;
+  const stock = ["stick", "scarf"];
+  if (state.map >= 2 || state.flags.captured) stock.push("dagger", "vest");
+  if (state.map >= 4 || state.flags.gate) stock.push("sword", "armor");
+
+  panel("<h2>Mama’s Pantry</h2><p>" + state.gold + " G · " +
+    (state.route.bosses.parents === "kill" ? "Mama’s order book is still open." :
+      state.map === 0 ? "Food and gear for the road, little one." :
+        "Order food and gear from Mama’s pantry.") + "</p>");
+  for (const key of [...Object.keys(items), ...stock]) {
     const gear = GEAR[key];
     const item = gear || items[key];
     const price = gear?.price ?? foodPrices[key];
@@ -183,7 +187,7 @@ function shop(id) {
       if (gear) state.gear.push(key);
       else state.inventory[key]++;
       save();
-      shop(id);
+      mamaShop();
     });
     buy.disabled = state.gold < price || (gear ? state.gear.includes(key) : state.inventory[key] >= 999);
     row.append(label, buy);
@@ -549,7 +553,12 @@ function worldMap() {
     hint.textContent = "Revisit connected rooms and walk to find more enemies before resolving the region’s bosses or leaving.";
     $("overlay").firstChild.append(hint);
   }
-  panelButtons([["Back to exploring", closePanel, true]]);
+  panelButtons([
+    ...(state.map > 0 || state.route.bosses.parents === "kill"
+      ? [["Order from Mama’s Pantry", mamaShop]]
+      : []),
+    ["Back to exploring", closePanel, true],
+  ]);
 }
 
 function fresh() {
@@ -717,7 +726,7 @@ function objective() {
           : "Follow the forest road east to Frostbell Harbor.";
     case 1:
       return fruitCount() < 3
-        ? `Explore the island and gather boononas (${fruitCount()} / 3).`
+        ? `Find the island’s three boonona groves (${fruitCount()} / 3).`
         : !f.baby
           ? "Face Baby Orca at Breakwater Beach, east of Golden Orchard."
           : "Leave from the eastern side of Breakwater Beach.";
@@ -826,7 +835,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you, save your journey, and supply one fish if your bag is empty. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Buy food, weapons, and armor from Mama at home. Away from Frostbell, order from her pantry through the map journal. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1003,7 +1012,7 @@ function activeObjects() {
   const m = currentRoom();
   return m.objects.filter((o) => {
     const [type, , , id] = o;
-    if (type === "fruit" || type === "chest" || type === "boss")
+    if (type === "fruit" || type === "boss")
       return !state.flags[id];
     return true;
   });
@@ -1029,8 +1038,6 @@ function targets() {
       name:
         {
           shrine: "Rest lantern",
-          chest: "Supply chest",
-          shop: WORLD.shops[o[3]]?.name,
           fruit: "Boonona grove",
           boss: enemies[o[3]]?.name,
           cage: "Slippy",
@@ -1088,7 +1095,7 @@ function interact() {
     case "boss":
       if (n.id === "baby" && fruitCount() < 3) {
         say("BABY ORCA", [
-          "No snacks, no passage! There are three boonona groves on this island.",
+          "Want to pass? Find all three boonona groves and tell me where they are!",
         ]);
         return;
       }
@@ -1096,8 +1103,6 @@ function interact() {
       break;
     case "shrine":
       state.hp = state.maxHp;
-      if (Object.values(state.inventory).every((v) => v === 0))
-        state.inventory.fish = 1;
       say(
         "REST LANTERN",
         [
@@ -1112,22 +1117,10 @@ function interact() {
       );
       tone(587, 0.3);
       break;
-    case "shop":
-      shop(n.id);
-      break;
-    case "chest":
-      state.flags[n.id] = true;
-      state.inventory.fish += 2;
-      state.inventory.soup++;
-      say("SUPPLIES", [
-        "Two silver fish and a jar of Pippy’s soup. Someone packed with love.",
-      ]);
-      break;
     case "fruit":
       state.flags[n.id] = true;
-      state.inventory.boonona += 2;
       say("FLIPPY", [
-        `Two sweet boononas! That’s grove ${fruitCount()} of 3. One for now, one for later.`,
+        `I’ll mark this boonona grove in my journal. That’s ${fruitCount()} of 3.`,
       ]);
       break;
     case "journal":
@@ -1195,11 +1188,6 @@ function talk(id) {
       say(id.toUpperCase(), ["Please pass through. Nobody here wants a fight."]);
       return;
     }
-    if (!state.flags["gift-" + id]) {
-      state.flags["gift-" + id] = true;
-      if (id === "drift") state.inventory.soup++;
-      else if (id === "moss") state.inventory.fish += 2;
-    }
     const reaction = state.route.total
       ? "News travels ahead of you. People here wonder which choices you’ll make next."
       : state.route.spared ? "Word is you listen before you swing. That means something here." : null;
@@ -1221,18 +1209,14 @@ function talk(id) {
     else
       say("SLIPPY", [
         fruitCount() < 3
-          ? "Three boonona groves, an entire island, and absolutely no reason to skip lunch."
+          ? "Three boonona groves on one island! Let’s mark all of them in the journal."
           : !f.baby
             ? "That baby orca is blocking the eastern shallows. I believe in you, Flippy."
             : "A new current! I wonder where it goes.",
       ]);
-  } else if (id === "mama")
-    say("MAMA", [
-      f.parents
-        ? "The world can be rough. Remember: being brave doesn’t mean being alone."
-        : "We know you want to explore. Talk to Papa. We just need to know you’ll be safe.",
-    ]);
-  else if (id === "parents") {
+  } else if (id === "mama") {
+    mamaShop();
+  } else if (id === "parents") {
     if (f.parents)
       say("PAPA", [
         "You showed us your courage. The eastern dock is ready. Take care of each other.",
@@ -1248,7 +1232,7 @@ function talk(id) {
       say("PIPPY", [
         "An orca patrol took your friend? Then there’s only one place they’re heading. The Orca Kingdom.",
         "I can get you to the sea gate. After that… I’m a sailor, not a soldier.",
-        "Board my boat when you’re ready. There’s soup in the supply chests. Courage works better with a full belly.",
+        "Board my boat when you’re ready. If you’re low on food, you can order from Mama’s pantry in your map journal.",
       ]);
     } else
       say("PIPPY", [
@@ -1263,7 +1247,7 @@ function talk(id) {
 }
 function signText() {
   return [
-    "FROSTBELL ISLAND\nHome ↑ · Eastern dock →\nRest lanterns heal and save. Supply chests contain food.",
+    "FROSTBELL ISLAND\nHome ↑ · Eastern dock →\nRest lanterns heal and save. Mama sells food and gear at home.",
     "BOONONA BAY\nThree fruit groves grow around the shore.\nBaby Orca guards the eastern passage.",
     "QUIET COVE\nPippy’s boat →\nA path still exists, even when you can’t see the whole thing.",
     "SEA GATE\nCaptain Undertow guards the kingdom.\nRest before you challenge him.",
@@ -1286,7 +1270,7 @@ function exitMap() {
     changeMap(1);
     say("SLIPPY", [
       "Sand! Trees! Flippy, this place has colors I’ve never eaten before.",
-      "Let’s visit all three boonona groves before we head onward.",
+      "Let’s mark all three boonona groves in the journal before we head onward.",
     ]);
   } else if (state.map === 1) {
     if (!f.baby) {
@@ -1571,10 +1555,6 @@ function finishBattle(outcome) {
       state.flags.ending = true;
       state.route.ending = "genocide";
     }
-    if (killed) {
-      state.inventory.fish = Math.min(999, state.inventory.fish + 1);
-      if (b.boss) state.inventory.soup = Math.min(999, state.inventory.soup + 1);
-    }
     b.message = (killed ? "Victory! You earned " : "You spared " + b.name + "! You earned ") +
       reward + " G" + (xp ? " and " + xp + " EXP" : "") + ".";
     if (!b.boss && state.route.possible && hasQuota())
@@ -1602,7 +1582,6 @@ function finishBattle(outcome) {
       state.assist = assist;
       state.difficulty = difficulty;
       state.hp = state.maxHp;
-      state.inventory.fish = Math.max(2, state.inventory.fish);
     }
     mode = "world";
     battle = null;
@@ -3157,12 +3136,6 @@ function object(o) {
     creature(id, x, y + Math.sin(time * 2) * 2);
     return;
   }
-  if (t === "shop") {
-    rect(x - 22, y - 23, 44, 23, "#536576");
-    rect(x - 25, y - 28, 50, 6, "#c1a26e");
-    text("G", x, y - 8, 12, "#f4dfa2", "center");
-    return;
-  }
   if (t === "journal") {
     rect(x - 12, y - 15, 25, 17, "#765e58");
     rect(x - 10, y - 17, 20, 15, "#e5d7b1");
@@ -3204,18 +3177,6 @@ function object(o) {
     rect(x - 4, y - 27, 8, 15, "#fff0b1");
     rect(x - 13, y - 7, 26, 5, "#acc1b8");
     glow(x, y - 21, 74 + Math.sin(time * 3) * 3, "#ffd59134");
-    return;
-  }
-  if (t === "chest") {
-    ellipse(x, y + 4, 25, 6, "#243e4933");
-    rect(x - 21, y - 22, 42, 27, "#655653");
-    rect(x - 19, y - 25, 38, 12, "#b39068");
-    rect(x - 17, y - 23, 34, 5, "#d4b17d");
-    rect(x - 17, y - 10, 34, 11, "#96714f");
-    rect(x - 14, y - 24, 4, 28, "#d1b578");
-    rect(x + 10, y - 24, 4, 28, "#d1b578");
-    rect(x - 4, y - 13, 8, 10, "#e5ca88");
-    rect(x - 1, y - 11, 2, 5, "#6a644f");
     return;
   }
   if (t === "cage") {
