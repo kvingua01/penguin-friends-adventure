@@ -17,7 +17,7 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 
 ## Play
 
-- WASD / arrow keys, or the on-screen direction pad: move.
+- WASD / arrow keys, or the on-screen direction pad: move. Hold Shift to sprint at double speed while exploring.
 - E / Space / INTERACT: talk, inspect objects, advance dialogue, or stop the strike marker.
 - M / Map: open the region journal and see visited rooms, connections, and your current position. Use E at doorways to enter connected rooms.
 - I / Bag: healing inventory. Escape / Menu: pause, instructions, assist mode, and saving.

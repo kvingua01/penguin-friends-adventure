@@ -815,7 +815,7 @@ function title() {
   updateHud();
   const saved = readSave();
   panel(
-    '<div class="eyebrow">48 CONNECTED ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Progress saves at doorways and lanterns.</small>',
+    '<div class="eyebrow">48 CONNECTED ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Sprint: Shift · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Progress saves at doorways and lanterns.</small>',
   );
   const bs = [];
   if (saved)
@@ -863,7 +863,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. You can also order through the map journal while traveling. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. You can also order through the map journal while traveling. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -2669,10 +2669,10 @@ function countEncounterRoom() {
   state.encounterSteps = 0;
 }
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
-function updateWalkingEncounters(walkingSeconds) {
+function updateWalkingEncounters(distance) {
   if (mode !== "world" || dialogue || !$("overlay").hidden) return;
   if (slippyPending()) {
-    if (walkingSeconds > 0) confrontSlippy();
+    if (distance > 0) confrontSlippy();
     return;
   }
   const room = currentRoom();
@@ -2687,7 +2687,7 @@ function updateWalkingEncounters(walkingSeconds) {
     return;
   }
   const exhausted = state.route.possible && hasQuota();
-  if (walkingSeconds <= 0 || !(state.encounterRooms >= 5)) return;
+  if (distance <= 0 || !(state.encounterRooms >= 5)) return;
   if (exhausted) {
     if (!state.flags["empty-" + state.map]) {
       state.flags["empty-" + state.map] = true;
@@ -2698,7 +2698,7 @@ function updateWalkingEncounters(walkingSeconds) {
   const walked = Number.isFinite(state.encounterSteps)
     ? Math.max(0, state.encounterSteps)
     : 0;
-  state.encounterSteps = walked + walkingSeconds * 150;
+  state.encounterSteps = walked + distance;
   if (state.encounterSteps < 90) return;
   const pool = room.enemies.length
     ? room.enemies.map((e) => e[0])
@@ -2715,13 +2715,14 @@ function updateWalkingEncounters(walkingSeconds) {
 }
 function updateWorld(dt) {
   const [dx, dy] = direction(),
-    speed = 150;
+    speed = keys.has("shift") ? 300 : 150;
   const px = state.x,
     py = state.y;
   if (walkable(state.x + dx * speed * dt, state.y)) state.x += dx * speed * dt;
   if (walkable(state.x, state.y + dy * speed * dt)) state.y += dy * speed * dt;
-  state.steps = (state.steps || 0) + Math.hypot(state.x - px, state.y - py);
-  updateWalkingEncounters(Math.hypot(state.x - px, state.y - py) / speed);
+  const distance = Math.hypot(state.x - px, state.y - py);
+  state.steps = (state.steps || 0) + distance;
+  updateWalkingEncounters(distance);
   if (mode !== "world") return;
   if ((dx || dy) && time - lastFootprint > 0.17) {
     footprints.push({
@@ -3881,9 +3882,12 @@ window.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if (movement.includes(k)) {
+  if (movement.includes(k) || k === "shift") {
     e.preventDefault();
-    if ($("overlay").hidden && !dialogue) keys.add(k);
+    if ($("overlay").hidden && !dialogue) {
+      keys.add(k);
+      if (e.shiftKey) keys.add("shift");
+    }
   }
   if (e.repeat) return;
   if (k === "e" || k === " ") {

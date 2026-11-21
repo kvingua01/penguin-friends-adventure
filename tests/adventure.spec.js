@@ -433,12 +433,12 @@ test("every fifth room triggers a battle after a few steps, including backtracki
     changeMap(1);
     updateWalkingEncounters(0);
     const idle = mode;
-    updateWalkingEncounters(0.3);
+    updateWalkingEncounters(45);
     const few = mode;
     save();
     const saved = readSave();
     state = saved;
-    updateWalkingEncounters(0.31);
+    updateWalkingEncounters(46.5);
     const fought = mode === "battle" && !battle.boss;
     const reset = state.encounterRooms;
     mode = "world";
@@ -470,7 +470,7 @@ test("all rooms allow scheduled encounters without E", async ({ page }) => {
       state.y = 300;
       state.encounterRooms = 5;
       state.encounterSteps = 0;
-      updateWalkingEncounters(0.61);
+      updateWalkingEncounters(91.5);
       if (mode !== "battle" || battle.boss) failures.push(room.id);
     }
     return failures;
@@ -569,13 +569,13 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
           const door = currentRoom().doors.find((door) => door.to === nextRoom);
           enterRoom(nextRoom, door.direction);
         }
-        updateWalkingEncounters(0.61);
+        updateWalkingEncounters(91.5);
         if (mode !== "battle" || battle.boss) throw Error("Missing regular encounter in " + map);
         finishBattle("win");
         battle.done();
       }
       state.encounterRooms = 5;
-      updateWalkingEncounters(0.61);
+      updateWalkingEncounters(91.5);
       if (mode !== "world" || state.route.kills[map] !== 7) failures.push(map);
       while (dialogue) advance();
       for (const type of [["parents"], ["baby"], [], ["gate"], ["key1", "key2"], ["king"]][map]) {
@@ -817,4 +817,33 @@ test("Snowcap Crab’s first o opens a Slippy challenge with a temporary loadout
   expect(await page.evaluate(() => ({
     enemy: battle.type, xp: state.xp, soup: state.inventory.soup, route: state.route.ending,
   }))).toEqual({ enemy: "snowcrab", xp: 0, soup: 1, route: null });
+});
+
+test("holding Shift doubles exploration movement and counts real distance without speeding up the heart", async ({ page }) => {
+  await begin(page);
+  const result = await page.evaluate(() => {
+    const key = (type, value, shiftKey = false) =>
+      window.dispatchEvent(new KeyboardEvent(type, { key: value, shiftKey }));
+    state.encounterRooms = 5;
+    const start = state.x;
+    key("keydown", "d");
+    updateWorld(0.04);
+    const walk = state.x - start;
+    key("keydown", "Shift", true);
+    updateWorld(0.04);
+    const sprint = state.x - start - walk;
+    key("keyup", "Shift");
+    updateWorld(0.04);
+    const released = state.x - start - walk - sprint;
+    const encounter = state.encounterSteps;
+
+    startBattle("snowcrab", "walking-encounter");
+    beginDodge();
+    key("keydown", "D", true);
+    const heartStart = battle.heart.x;
+    updateBattle(0.04);
+    return { walk, sprint, released, encounter, heart: battle.heart.x - heartStart };
+  });
+  expect(result).toMatchObject({ walk: 6, sprint: 12, released: 6, encounter: 24 });
+  expect(result.heart).toBeCloseTo(193 * 0.04);
 });
