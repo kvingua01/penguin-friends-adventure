@@ -2440,11 +2440,9 @@ function spawnPattern(pattern = battle.attack) {
 function hitHeart() {
   const b = battle;
   if (b.invulnerable > 0) return;
-  state.hp = Math.max(
-    0,
-    state.hp -
-      Math.max(1, Math.ceil((b.damage + (b.phaseLevel - 1) * 2 - defense()) * (state.assist ? 0.5 : 1))),
-  );
+  const regionalBonus = b.type === "slippy" ? 0 : state.map * 2;
+  const damage = b.damage + regionalBonus + (b.phaseLevel - 1) * 2 - defense();
+  state.hp = Math.max(0, state.hp - Math.max(1, Math.ceil(damage * (state.assist ? 0.5 : 1))));
   b.invulnerable = state.assist ? 0.9 : 0.62;
   b.shake = 0.2;
   impact = 0.6;

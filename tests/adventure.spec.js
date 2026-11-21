@@ -922,3 +922,37 @@ test("camping lanes track the heart and vertical walls are 35% slower with reach
   for (const wall of report.walls)
     expect(wall.maxGapShift).toBeLessThan(193 * 0.7 * 0.87);
 });
+
+test("enemy hits scale by region while Slippy keeps his original damage", async ({ page }) => {
+  await begin(page);
+  const damage = await page.evaluate(() => {
+    state.gear = ["armor"];
+    state.equipment.armor = "armor";
+    function takeHit(region, type, phase = 1, assist = false) {
+      mode = "world";
+      state.map = region;
+      state.room = WORLD.starts[region];
+      state.hp = state.maxHp;
+      state.assist = assist;
+      startBattle(type, "damage-test");
+      battle.phaseLevel = phase;
+      const before = state.hp;
+      hitHeart();
+      return before - state.hp;
+    }
+    return {
+      sentry: WORLD.starts.map((_, region) => takeHit(region, "guard")),
+      lateBoss: takeHit(5, "king", 3),
+      slippyHome: takeHit(0, "slippy", 3),
+      slippyFinale: takeHit(5, "slippy", 3),
+      slippyAssist: takeHit(5, "slippy", 3, true),
+    };
+  });
+  expect(damage).toEqual({
+    sentry: [3, 5, 7, 9, 11, 13],
+    lateBoss: 21,
+    slippyHome: 16,
+    slippyFinale: 16,
+    slippyAssist: 8,
+  });
+});
