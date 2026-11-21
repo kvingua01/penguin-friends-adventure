@@ -1975,10 +1975,19 @@ function spawnPattern(pattern = battle.attack) {
     h.speed = speed * s;
     h.projectileKind = kind;
   };
+  // Use a vertical approach if the player is already close to a side wall.
+  const edgeShot = (kind) => {
+    if (n % 3 !== 1) return;
+    const { x, y } = b.heart;
+    if (Math.min(x - L, R - x) < 85)
+      aim(x, y < T + a.h / 2 ? B + 9 : T - 9, 1, 0, kind);
+    else
+      aim(x < L + a.w / 2 ? L - 9 : R + 9, y, 1, 0, kind);
+  };
   switch (pattern) {
     case "snowcrab.claws": {
       const width = 22 + ((n * 61) % (a.w / 2 - 37));
-      hazard("beam", L + width, T, 29, a.h, 0.9, 0.3);
+      hazard("beam", n % 2 ? b.heart.x : L + width, T, 29, a.h, 0.9, 0.3);
       hazard("beam", R - width, T, 29, a.h, 0.9, 0.3);
       break;
     }
@@ -1999,6 +2008,7 @@ function spawnPattern(pattern = battle.attack) {
     }
     case "snowcrab.burrow":
       burst(L + 40 + ((n * 97) % (a.w - 80)), B - 20, 5, 0.8, "claw");
+      edgeShot("claw");
       break;
     case "coconut.seeds": {
       for (let i = 0; i < 4; i++)
@@ -2025,7 +2035,7 @@ function spawnPattern(pattern = battle.attack) {
       );
       break;
     case "coconut.vines":
-      hazard("beam", L + 35 + ((n * 103) % (a.w - 70)), T, 27, a.h, 1.1, 0.4);
+      hazard("beam", n % 2 ? b.heart.x : L + 35 + ((n * 103) % (a.w - 70)), T, 27, a.h, 1.1, 0.4);
       break;
     case "reef.school": {
       for (let i = 0; i < 4; i++)
@@ -2038,6 +2048,7 @@ function spawnPattern(pattern = battle.attack) {
           "fish",
           { swayY: 42, phase: i * 0.6 },
         );
+      edgeShot("fish");
       break;
     }
     case "reef.jaws": {
@@ -2079,7 +2090,7 @@ function spawnPattern(pattern = battle.attack) {
       hazard(
         "rush",
         L,
-        Math.max(T + 7, Math.min(B - 34, b.heart.y - 12)),
+        b.heart.y - 12,
         a.w,
         24,
         0.95,
@@ -2123,7 +2134,7 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "guard.watch":
-      hazard("beam", L + 30 + ((n * 109) % (a.w - 60)), T, 19, a.h, 0.85, 0.38);
+      hazard("beam", n % 2 ? b.heart.x : L + 30 + ((n * 109) % (a.w - 60)), T, 19, a.h, 0.85, 0.38);
       break;
     case "parents.snow": {
       for (let i = 0; i < 3; i++)
@@ -2151,7 +2162,7 @@ function spawnPattern(pattern = battle.attack) {
       hazard(
         "rush",
         L,
-        Math.max(T + 10, Math.min(B - 40, b.heart.y - 14)),
+        b.heart.y - 14,
         a.w,
         28,
         1,
@@ -2235,6 +2246,7 @@ function spawnPattern(pattern = battle.attack) {
         [R, B, -1, -1],
       ])
         bullet(x, y, sx * speed * 0.9, sy * speed * 0.435, 6, "spear");
+      edgeShot("spear");
       break;
     }
     case "key1.orbit": {
@@ -2254,7 +2266,7 @@ function spawnPattern(pattern = battle.attack) {
     }
     case "key1.prism": {
       const offset = 35 + ((n * 67) % (a.w / 2 - 60));
-      hazard("beam", L + offset, T, 18, a.h, 0.95, 0.35);
+      hazard("beam", n % 2 ? b.heart.x : L + offset, T, 18, a.h, 0.95, 0.35);
       hazard("beam", R - offset, T, 18, a.h, 1.15, 0.25);
       break;
     }
@@ -2286,10 +2298,11 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "key2.sluice": {
-      const gap = L + 60 + ((n * 97) % (a.w - 120));
-      for (let x = L + 18; x < R; x += 29)
+      // Sweep the gap across the arena without wrapping to the far side.
+      const gap = L + a.w / 2 + Math.sin(n * 0.5) * (a.w / 2 - 58);
+      for (let x = L + 6 + (n % 2) * 4; x < R; x += 21)
         if (Math.abs(x - gap) > 37)
-          bullet(x, T - 8, Math.sin(n) * 15, speed, 5, "water");
+          bullet(x, T - 8, 0, speed * 0.65, 7, "water");
       break;
     }
     case "key2.whirl": {
