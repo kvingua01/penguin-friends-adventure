@@ -2,6 +2,8 @@
 
 An expanded, single-player browser RPG with 48 connected rooms with an original four-chapter story adaptation, canvas pixel art, and optional synthesized audio. Built with Node.js and Express; no build step, external asset service, credentials, or database required.
 
+See [Game context](GAME_CONTEXT.md) for the project history, full story walkthrough, gameplay rules, and developer handoff notes.
+
 ## Run locally or on Railway
 
 Use Node.js 22 or newer:
