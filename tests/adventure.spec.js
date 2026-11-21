@@ -853,7 +853,7 @@ test("holding Shift doubles exploration movement and counts real distance withou
   expect(result.heart).toBeCloseTo(193 * 0.04);
 });
 
-test("camping lanes track the heart and Floodgates falls 35% slower with a reachable gap", async ({ page }) => {
+test("camping lanes track the heart and falling walls are 35% slower with reachable gaps", async ({ page }) => {
   await begin(page);
   const report = await page.evaluate(() => {
     const failures = [];
@@ -877,25 +877,43 @@ test("camping lanes track the heart and Floodgates falls 35% slower with a reach
           failures.push({ pattern, x, y });
       }
     }
-    mode = "world";
-    startBattle("key2", "key2");
-    const gaps = [];
-    const speeds = new Set();
-    for (let i = 0; i < 30; i++) {
-      battle.bullets = [];
-      spawnPattern("key2.sluice");
-      const columns = battle.bullets;
-      columns.forEach((p) => speeds.add(p.vy));
-      const allColumns = [];
-      for (let x = arena.x + 6 + (i % 2) * 4; x < arena.x + arena.w; x += 21)
-        allColumns.push(x);
-      const safe = allColumns.filter((x) => !columns.some((p) => p.x === x));
-      gaps.push((safe[0] + safe.at(-1)) / 2);
+    const walls = [];
+    for (const [enemy, pattern] of [
+      ["key2", "key2.sluice"],
+      ["gate", "gate.march"],
+      ["slippy", "slippy.lastlight"],
+      ["snowcrab", "snowcrab.snow"],
+    ]) {
+      mode = "world";
+      startBattle(enemy, enemy);
+      const gaps = [];
+      const speeds = new Set();
+      for (let i = 0; i < 30; i++) {
+        battle.bullets = [];
+        battle.hazards = [];
+        spawnPattern(pattern);
+        const columns = battle.bullets;
+        columns.forEach((p) => speeds.add(p.vy));
+        const allColumns = [];
+        if (pattern === "snowcrab.snow") {
+          for (let x = arena.x + 25; x < arena.x + arena.w; x += 66)
+            allColumns.push(x);
+        } else {
+          for (let x = arena.x + 6 + (i % 2) * 4; x < arena.x + arena.w; x += 21)
+            allColumns.push(x);
+        }
+        const safe = allColumns.filter((x) => !columns.some((p) => p.x === x));
+        gaps.push((safe[0] + safe.at(-1)) / 2);
+      }
+      const maxGapShift = Math.max(...gaps.slice(1).map((gap, i) => Math.abs(gap - gaps[i])));
+      walls.push({ speeds: [...speeds], maxGapShift });
     }
-    const maxGapShift = Math.max(...gaps.slice(1).map((gap, i) => Math.abs(gap - gaps[i])));
-    return { failures, speeds: [...speeds], maxGapShift };
+    return { failures, walls };
   });
   expect(report.failures).toEqual([]);
-  expect(report.speeds).toEqual([145 * 0.65]);
-  expect(report.maxGapShift).toBeLessThan(193 * 0.7 * 0.87);
+  expect(report.walls.map((wall) => wall.speeds)).toEqual(
+    [145, 145, 185 * 1.12, 113].map((speed) => [speed * 0.65]),
+  );
+  for (const wall of report.walls)
+    expect(wall.maxGapShift).toBeLessThan(193 * 0.7 * 0.87);
 });

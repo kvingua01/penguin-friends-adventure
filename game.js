@@ -1984,6 +1984,14 @@ function spawnPattern(pattern = battle.attack) {
     else
       aim(x < L + a.w / 2 ? L - 9 : R + 9, y, 1, 0, kind);
   };
+  const fallingWall = (kind, fallSpeed, gapHalfWidth) => {
+    // Sweep the gap across the arena without wrapping to the far side.
+    const gap = L + a.w / 2 + Math.sin(n * 0.5) * (a.w / 2 - 58);
+    for (let x = L + 6 + (n % 2) * 4; x < R; x += 21)
+      if (Math.abs(x - gap) > gapHalfWidth)
+        bullet(x, T - 8, 0, fallSpeed * 0.65, 7, kind);
+    return gap;
+  };
   switch (pattern) {
     case "snowcrab.claws": {
       const width = 22 + ((n * 61) % (a.w / 2 - 37));
@@ -1992,14 +2000,14 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "snowcrab.snow": {
-      const gap = n % 6;
+      const gap = 6 - Math.abs(6 - n % 12);
       for (let i = 0; i < 7; i++)
         if (i !== gap)
           bullet(
             L + 25 + i * 66,
             T - 10,
             (i % 2 ? 1 : -1) * 15,
-            speed,
+            speed * 0.65,
             5,
             "shard",
             { curve: 15, phase: i },
@@ -2223,12 +2231,9 @@ function spawnPattern(pattern = battle.attack) {
         { returnAt: 2.5 },
       );
       break;
-    case "gate.march": {
-      const gap = L + 60 + ((n * 79) % (a.w - 120));
-      for (let x = L + 20; x < R; x += 32)
-        if (Math.abs(x - gap) > 39) bullet(x, T - 9, 0, speed, 6, "spear");
+    case "gate.march":
+      fallingWall("spear", speed, 39);
       break;
-    }
     case "gate.anchor":
       burst(
         L + 50 + ((n * 107) % (a.w - 100)),
@@ -2297,14 +2302,9 @@ function spawnPattern(pattern = battle.attack) {
       }
       break;
     }
-    case "key2.sluice": {
-      // Sweep the gap across the arena without wrapping to the far side.
-      const gap = L + a.w / 2 + Math.sin(n * 0.5) * (a.w / 2 - 58);
-      for (let x = L + 6 + (n % 2) * 4; x < R; x += 21)
-        if (Math.abs(x - gap) > 37)
-          bullet(x, T - 8, 0, speed * 0.65, 7, "water");
+    case "key2.sluice":
+      fallingWall("water", speed, 37);
       break;
-    }
     case "key2.whirl": {
       for (let i = 0; i < 4; i++)
         bullet(
@@ -2426,10 +2426,7 @@ function spawnPattern(pattern = battle.attack) {
       break;
     }
     case "slippy.lastlight": {
-      const gap = L + 60 + (n * 71) % (a.w - 120);
-      for (let x = L + 10; x < R; x += 23)
-        if (Math.abs(x - gap) > 36)
-          bullet(x, T - 9, 0, speed * 1.12, 6, "shard");
+      const gap = fallingWall("shard", speed * 1.12, 36);
       if (n % 2 === 0) {
         const y = T + 34 + (n * 43) % (a.h - 90);
         hazard("rush", L, y, a.w, 20, 0.83, 0.23);
