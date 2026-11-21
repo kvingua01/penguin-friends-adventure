@@ -31,7 +31,7 @@ const items = {
   boonona: { name: "Boonona", heal: 25 },
   soup: { name: "Pippy’s soup", heal: 65 },
 };
-const REGION_QUOTA = 20;
+const REGION_QUOTA = 1;
 const REQUIRED_BOSSES = ["parents", "baby", "gate", "key1", "key2", "king"];
 const MERCY = {
   snowcrab: [
@@ -129,19 +129,6 @@ function confrontSlippy() {
     "Then the guards stopped coming. I heard what happened on the way here.",
     "You were supposed to come for me, Flippy. Now I have to keep everyone else safe from you.",
   ], () => startBattle("slippy", "slippyDefeated"));
-}
-function protectQuota(proceed) {
-  const remaining = REGION_QUOTA - state.route.kills[state.map];
-  if (!state.route.possible || remaining >= REGION_QUOTA || remaining <= 0) {
-    proceed();
-    return;
-  }
-  panel("<h2>Continue the story?</h2><p>" + remaining +
-    " regular enemies remain in this region. Finishing this encounter or leaving early can close Genocide. Keep exploring to find more.</p>");
-  panelButtons([
-    ["Keep exploring", closePanel, true],
-    ["Continue", () => { closePanel(); proceed(); }],
-  ]);
 }
 function storyRoute() {
   if (genocideComplete()) return "genocide";
@@ -546,11 +533,11 @@ function worldMap() {
     (state.route.possible ? Math.max(0, REGION_QUOTA - state.route.kills[state.map]) +
       " remaining here" : "Route closed") + " · " +
     ["Frostbell", "Boonona", "Quiet Cove", "Sea Gate", "Tidal Halls", "Royal Halls"]
-      .map((name, index) => name + " " + Math.min(REGION_QUOTA, state.route.kills[index]) + "/20").join(" · ");
+      .map((name, index) => name + " " + Math.min(REGION_QUOTA, state.route.kills[index]) + "/" + REGION_QUOTA).join(" · ");
   $("overlay").firstChild.append(progress);
   if (state.route.possible && !hasQuota()) {
     const hint = document.createElement("small");
-    hint.textContent = "Revisit connected rooms and walk to find more enemies before resolving the region’s bosses or leaving.";
+    hint.textContent = "Revisit connected rooms and walk to find a regular enemy before resolving the region’s bosses or leaving.";
     $("overlay").firstChild.append(hint);
   }
   panelButtons([
@@ -1099,7 +1086,7 @@ function interact() {
         ]);
         return;
       }
-      protectQuota(() => startBattle(n.id, n.id));
+      startBattle(n.id, n.id);
       break;
     case "shrine":
       state.hp = state.maxHp;
@@ -1160,7 +1147,7 @@ function interact() {
             : "Water blocks the way. Turn the sluice wheel in Floodworks.",
         ]);
       } else if (n.to && n.to !== "region") enterRoom(n.to, n.direction);
-      else protectQuota(exitMap);
+      else exitMap();
       break;
     case "cage":
       if (state.flags.slippyDefeated) ending();
@@ -1225,7 +1212,7 @@ function talk(id) {
       say("PAPA", [
         "Find Slippy first, little one. Big plans deserve a good friend.",
       ]);
-    else protectQuota(() => startBattle("parents", "parents"));
+    else startBattle("parents", "parents");
   } else if (id === "pippy") {
     if (!f.pippy) {
       f.pippy = true;
@@ -2631,8 +2618,7 @@ function updateWalkingEncounters(walkingSeconds) {
       Math.hypot(state.x - o[1], state.y - o[2]) < 65 &&
       (o[3] !== "baby" || fruitCount() >= 3),
   );
-  // During a partial quota, the interaction prompt lets the player defer this fight.
-  if (boss && (!state.route.possible || hasQuota() || state.route.kills[state.map] === 0)) {
+  if (boss) {
     startBattle(boss[3], boss[3]);
     return;
   }

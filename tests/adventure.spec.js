@@ -554,6 +554,9 @@ test("each regular enemy and story boss can be spared for Gold without EXP", asy
 
 test("regional grinding exhausts each pool and unlocks Slippy after King Orca", async ({ page }) => {
   await begin(page);
+  await page.keyboard.press("m");
+  await expect(page.getByText(/Genocide progress.*Frostbell 0\/1.*Royal Halls 0\/1/)).toBeVisible();
+  await page.keyboard.press("Escape");
   const report = await page.evaluate(() => {
     const failures = [];
     for (let map = 0; map < 6; map++) {
@@ -572,7 +575,7 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
       }
       state.encounterRooms = 5;
       updateWalkingEncounters(0.61);
-      if (mode !== "world" || state.route.kills[map] !== 20) failures.push(map);
+      if (mode !== "world" || state.route.kills[map] !== 1) failures.push(map);
       while (dialogue) advance();
       for (const type of [["parents"], ["baby"], [], ["gate"], ["key1", "key2"], ["king"]][map]) {
         if (slippyPending()) failures.push("early Slippy");
@@ -602,7 +605,7 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
     return result;
   });
   expect(report).toEqual({ failures: [], phases: [1, 2, 3], boss: "slippy", route: "genocide",
-    kills: [20, 20, 20, 20, 20, 20], total: 126 });
+    kills: [1, 1, 1, 1, 1, 1], total: 12 });
   await expect(page.getByRole("heading", { name: "No one on the shore" })).toBeVisible();
 });
 

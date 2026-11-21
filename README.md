@@ -55,7 +55,7 @@ Regular enemies appear automatically after a few steps (90 world pixels) in ever
 
 - **Neutral** follows the rescue story with reactions to your battle outcomes.
 - **Pacifist** requires peaceful resolutions for the story bosses and zero kills. You can avoid or flee optional encounters.
-- **Genocide** requires 20 regular kills in each of the six regions before resolving that region’s bosses or leaving. Spare any opponent or pass a required gate early and the route closes. Exhausted regions no longer spawn regular encounters while the route is open. Track progress in the map journal. A fully qualifying run unlocks Slippy after King Orca.
+- **Genocide** requires one regular kill in each of the six regions before resolving that region’s bosses or leaving. Spare any opponent or pass a required gate early and the route closes. Exhausted regions no longer spawn regular encounters while the route is open. Track progress in the map journal. A fully qualifying run unlocks Slippy after King Orca.
 
 Battle victories award Gold and EXP. Sparing awards Gold. Mama’s Pantry is the only shop for food, weapons, and armor. Talk to Mama at home, or use the order button in the map journal after leaving Frostbell. The order book also remains available if Mama is gone. Stronger gear unlocks as you advance. Open the Bag outside of battle to equip or remove one weapon and one armor piece.
 
