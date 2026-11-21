@@ -40,7 +40,9 @@ const BASE_HP = 50;
 const HP_PER_LEVEL = 8;
 const HP_LEVEL_UPS = 7;
 const STAPLE_FOOD = ["fish", "boonona", "soup"];
-const REGION_QUOTA = 1;
+const REGION_QUOTA = 7;
+const XP_PER_LEVEL = 8;
+const MAX_LEVEL = 15;
 const REQUIRED_BOSSES = ["parents", "baby", "gate", "key1", "key2", "king"];
 const MERCY = {
   snowcrab: [
@@ -152,6 +154,19 @@ function confrontSlippy() {
     "You were supposed to come for me, Flippy. Now I have to keep everyone else safe from you.",
   ], () => startBattle("slippy", "slippyDefeated"));
 }
+function protectQuota(proceed) {
+  const remaining = REGION_QUOTA - state.route.kills[state.map];
+  if (!state.route.possible || remaining >= REGION_QUOTA || remaining <= 0) {
+    proceed();
+    return;
+  }
+  panel("<h2>Continue the story?</h2><p>" + remaining +
+    " regular enemies remain in this region. Finishing this encounter or leaving early can close Genocide. Keep exploring to find more.</p>");
+  panelButtons([
+    ["Keep exploring", closePanel, true],
+    ["Continue", () => { closePanel(); proceed(); }],
+  ]);
+}
 function storyRoute() {
   if (genocideComplete()) return "genocide";
   if (!state.route.legacy && !state.route.total &&
@@ -160,7 +175,7 @@ function storyRoute() {
   return "neutral";
 }
 function level(xp = state.xp) {
-  return 1 + Math.min(14, Math.floor(xp / 8));
+  return Math.min(MAX_LEVEL, 1 + Math.floor(xp / XP_PER_LEVEL));
 }
 function maxHealth(xp) {
   return BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, level(xp) - 1);
@@ -172,6 +187,7 @@ function attackBonus() {
   return level() - 1 + gearBonus("weapon");
 }
 function defense() {
+  if (battle?.practice) return 5;
   return Math.floor((level() - 1) / 3) + gearBonus("armor");
 }
 function mamaShop() {
@@ -558,7 +574,7 @@ function worldMap() {
   $("overlay").firstChild.append(progress);
   if (state.route.possible && !hasQuota()) {
     const hint = document.createElement("small");
-    hint.textContent = "Revisit connected rooms and walk to find a regular enemy before resolving the region’s bosses or leaving.";
+    hint.textContent = "Revisit connected rooms and walk to find regular enemies before resolving the region’s bosses or leaving.";
     $("overlay").firstChild.append(hint);
   }
   panelButtons([
@@ -790,6 +806,7 @@ function panelButtons(buttons) {
   $("overlay").firstChild.append(div);
 }
 function title() {
+  if (battle?.practice) state = battle.practice.state;
   mode = "title";
   battle = null;
   dialogue = null;
@@ -1112,7 +1129,7 @@ function interact() {
         ]);
         return;
       }
-      startBattle(n.id, n.id);
+      protectQuota(() => startBattle(n.id, n.id));
       break;
     case "pantry":
       mamaShop();
@@ -1176,7 +1193,7 @@ function interact() {
             : "Water blocks the way. Turn the sluice wheel in Floodworks.",
         ]);
       } else if (n.to && n.to !== "region") enterRoom(n.to, n.direction);
-      else exitMap();
+      else protectQuota(exitMap);
       break;
     case "cage":
       if (state.flags.slippyDefeated) ending();
@@ -1241,7 +1258,7 @@ function talk(id) {
       say("PAPA", [
         "Find Slippy first, little one. Big plans deserve a good friend.",
       ]);
-    else startBattle("parents", "parents");
+    else protectQuota(() => startBattle("parents", "parents"));
   } else if (id === "pippy") {
     if (!f.pippy) {
       f.pippy = true;
@@ -1397,16 +1414,17 @@ function ending() {
   ]);
 }
 // Battle phases: choice → strike → dodge → choice, or result.
-function startBattle(type, id) {
-  if (mode !== "world" || (enemies[type].boss && state.flags[id])) return;
+function startBattle(type, id, practice = null) {
+  if (!practice && (mode !== "world" || (enemies[type].boss && state.flags[id]))) return;
   state.encounterRooms = 0;
   state.encounterSteps = 0;
-  save();
+  if (!practice) save();
   mode = "battle";
   keys.clear();
   const data = enemies[type];
   battle = {
     ...data,
+    practice,
     type,
     id,
     hp: data.hp,
@@ -1554,6 +1572,17 @@ function finishBattle(outcome) {
   b.bullets = [];
   b.hazards = [];
   keys.clear();
+  if (b.practice) {
+    b.message = outcome === "win" ? "You won the Slippy challenge." : "You lost the Slippy challenge.";
+    b.done = () => {
+      state = b.practice.state;
+      battle = b.practice.battle;
+      updateHud();
+      battleUI();
+    };
+    battleUI();
+    return;
+  }
   if (outcome === "win" || outcome === "spare") {
     const killed = outcome === "win";
     const regionalGold = state.map * (b.boss ? 16 : 9);
@@ -2653,7 +2682,7 @@ function updateWalkingEncounters(walkingSeconds) {
       Math.hypot(state.x - o[1], state.y - o[2]) < 65 &&
       (o[3] !== "baby" || fruitCount() >= 3),
   );
-  if (boss) {
+  if (boss && (!state.route.possible || hasQuota() || state.route.kills[state.map] === 0)) {
     startBattle(boss[3], boss[3]);
     return;
   }
@@ -3561,6 +3590,32 @@ function heart(x, y) {
   rect(x - 5, y + 4, 10, 3, c);
   rect(x - 2, y + 7, 4, 3, c);
 }
+const choicePrompt = { text: "Choose an action below.", x: 480, y: 478, size: 11 };
+
+function openSlippyChallenge(event) {
+  if (mode !== "battle" || battle?.type !== "snowcrab" || battle.phase !== "choice" ||
+      !$("overlay").hidden || dialogue) return;
+
+  const bounds = canvas.getBoundingClientRect();
+  const x = (event.clientX - bounds.left) * W / bounds.width;
+  const y = (event.clientY - bounds.top) * H / bounds.height;
+  const prompt = choicePrompt;
+  ctx.save();
+  ctx.font = prompt.size + "px monospace";
+  const start = prompt.x - ctx.measureText(prompt.text).width / 2;
+  const letterLeft = start + ctx.measureText("Ch").width;
+  const letterRight = start + ctx.measureText("Cho").width;
+  ctx.restore();
+  if (x < letterLeft || x >= letterRight || y < prompt.y - prompt.size || y > prompt.y + 2) return;
+
+  const practice = { state, battle };
+  state = structuredClone(state);
+  state.xp = (MAX_LEVEL - 1) * XP_PER_LEVEL;
+  state.hp = state.maxHp = maxHealth(state.xp);
+  state.inventory.soup = 5;
+  startBattle("slippy", "slippy-challenge", practice);
+}
+
 function drawBattle() {
   const b = battle;
   ctx.save();
@@ -3770,11 +3825,11 @@ function drawBattle() {
     );
     text(
       b.phase === "choice"
-        ? "Choose an action below."
+        ? choicePrompt.text
         : "Continue below or press E.",
-      480,
-      478,
-      11,
+      choicePrompt.x,
+      choicePrompt.y,
+      choicePrompt.size,
       "#a3c1ca",
       "center",
     );
@@ -3878,5 +3933,6 @@ $("soundButton").onclick = toggleSound;
 canvas.addEventListener("pointerdown", () =>
   canvas.focus({ preventScroll: true }),
 );
+canvas.addEventListener("click", openSlippyChallenge);
 title();
 requestAnimationFrame(tick);

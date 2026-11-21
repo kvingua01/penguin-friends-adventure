@@ -556,7 +556,7 @@ test("each regular enemy and story boss can be spared for Gold without EXP", asy
 test("regional grinding exhausts each pool and unlocks Slippy after King Orca", async ({ page }) => {
   await begin(page);
   await page.keyboard.press("m");
-  await expect(page.getByText(/Genocide progress.*Frostbell 0\/1.*Royal Halls 0\/1/)).toBeVisible();
+  await expect(page.getByText(/Genocide progress.*Frostbell 0\/7.*Royal Halls 0\/7/)).toBeVisible();
   await page.keyboard.press("Escape");
   const report = await page.evaluate(() => {
     const failures = [];
@@ -576,7 +576,7 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
       }
       state.encounterRooms = 5;
       updateWalkingEncounters(0.61);
-      if (mode !== "world" || state.route.kills[map] !== 1) failures.push(map);
+      if (mode !== "world" || state.route.kills[map] !== 7) failures.push(map);
       while (dialogue) advance();
       for (const type of [["parents"], ["baby"], [], ["gate"], ["key1", "key2"], ["king"]][map]) {
         if (slippyPending()) failures.push("early Slippy");
@@ -606,7 +606,7 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
     return result;
   });
   expect(report).toEqual({ failures: [], phases: [1, 2, 3], boss: "slippy", route: "genocide",
-    kills: [1, 1, 1, 1, 1, 1], total: 12 });
+    kills: [7, 7, 7, 7, 7, 7], total: 48 });
   await expect(page.getByRole("heading", { name: "No one on the shore" })).toBeVisible();
 });
 
@@ -786,4 +786,35 @@ test("level-ups add eight HP seven times while the existing attack bonus keeps g
     progression: [50, 58, 66, 74, 82, 90, 98, 106, 106],
     hp: 101, atk: 8, savedHP: 101,
   });
+});
+
+test("Snowcap Crab’s first o opens a Slippy challenge with a temporary loadout", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => startBattle("snowcrab", "walking-encounter"));
+  const positions = await page.evaluate(() => {
+    const prompt = choicePrompt;
+    ctx.save();
+    ctx.font = prompt.size + "px monospace";
+    const left = prompt.x - ctx.measureText(prompt.text).width / 2;
+    const width = ctx.measureText("o").width;
+    ctx.restore();
+    const bounds = canvas.getBoundingClientRect();
+    const point = (column) => ({
+      x: bounds.left + (left + width * (column + 0.5)) * bounds.width / W,
+      y: bounds.top + (prompt.y - 4) * bounds.height / H,
+    });
+    return { first: point(2), second: point(3) };
+  });
+  await page.mouse.click(positions.second.x, positions.second.y);
+  expect(await page.evaluate(() => battle.type)).toBe("snowcrab");
+  await page.mouse.click(positions.first.x, positions.first.y);
+  expect(await page.evaluate(() => ({
+    enemy: battle.type, phase: battle.phase, xp: state.xp, def: defense(),
+    soup: state.inventory.soup, hp: state.hp, savedXP: readSave().xp,
+  }))).toEqual({ enemy: "slippy", phase: "choice", xp: 112, def: 5, soup: 5, hp: 106, savedXP: 0 });
+  await page.evaluate(() => finishBattle("win"));
+  await page.getByRole("button", { name: "Continue →" }).click();
+  expect(await page.evaluate(() => ({
+    enemy: battle.type, xp: state.xp, soup: state.inventory.soup, route: state.route.ending,
+  }))).toEqual({ enemy: "snowcrab", xp: 0, soup: 1, route: null });
 });

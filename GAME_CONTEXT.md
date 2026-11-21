@@ -18,9 +18,11 @@ Use the commit IDs to inspect earlier designs with `git show`. For changes carri
 
 ## Routes, mercy, and equipment update
 
-The original rescue route anchors Neutral. Pacifist resolves all story bosses peacefully without kills. Genocide requires one regular kill in each region before any required boss is resolved or the region is left, and every required boss must be killed. The room journal tracks each quota. A qualifying run ends with an original three-phase Slippy fight after King Orca.
+The original rescue route anchors Neutral. Pacifist resolves all story bosses peacefully without kills. Genocide requires seven regular kills in each region before any required boss is resolved or the region is left, and every required boss must be killed. The room journal tracks each quota. A qualifying run ends with an original three-phase Slippy fight after King Orca.
 
 Every existing enemy now has ACT actions. Successful sequences unlock SPARE, which earns Gold without EXP. FIGHT victories earn both. The Bag shows Gold, level, and equipped gear. Mama’s Pantry is the sole merchant for food and equipment. Its order book is available through the map journal away from Frostbell or if Mama is gone. Save schema 4 keeps the same storage key and migrates older saves without inventing past outcomes. Older saves with story progress or recorded EXP continue as Neutral because their earlier route history is unavailable.
+
+During Snowcap Crab’s choice turn, clicking the first “o” in the canvas prompt “Choose an action below” opens a practice version of the Slippy finale. The challenge has maximum EXP, 5 DEF, and five soups. Its outcome returns you to the crab battle with your original stats and inventory.
 
 ## Story and progression
 
