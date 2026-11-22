@@ -786,6 +786,8 @@ function objective() {
         ? `Defeat both wardens and collect their seals (${Number(!!f.key1) + Number(!!f.key2)} / 2).`
         : "Bring both seals to the Two-Seal Door, beyond the Gallery of Crowns.";
     case 5:
+      if (slippyPending())
+        return "Rest at the throne room lantern to save, then talk to Slippy when you’re ready.";
       return !f.king
         ? "Cross the royal halls and face King Orca in the throne room."
         : !f.ending
@@ -1062,6 +1064,7 @@ function activeObjects() {
   const m = currentRoom();
   return m.objects.filter((o) => {
     const [type, , , id] = o;
+    if (id === "rest-t3") return slippyPending();
     if (type === "fruit" || type === "boss")
       return !state.flags[id];
     return true;
@@ -1670,8 +1673,8 @@ function finishBattle(outcome) {
       ending();
       return;
     }
-    if (b.type === "king" && slippyPending()) {
-      confrontSlippy();
+    if (b.type === "king" && outcome === "win" && slippyPending()) {
+      say("FLIPPY", ["I can rest and save at the lantern before I talk to Slippy."]);
       return;
     }
     if (outcome === "spare" && b.boss) {
@@ -2702,10 +2705,7 @@ function countEncounterRoom() {
 // Count actual walking only: menus, dialogue, standing still, and walls do not count.
 function updateWalkingEncounters(distance) {
   if (mode !== "world" || dialogue || !$("overlay").hidden) return;
-  if (slippyPending()) {
-    if (distance > 0) confrontSlippy();
-    return;
-  }
+  if (slippyPending()) return;
   const room = currentRoom();
   const boss = activeObjects().find(
     (o) =>

@@ -18,7 +18,7 @@ Use the commit IDs to inspect earlier designs with `git show`. For changes carri
 
 ## Routes, mercy, and equipment update
 
-The original rescue route anchors Neutral. Pacifist resolves all story bosses peacefully without kills. Genocide requires seven regular kills in each region before any required boss is resolved or the region is left, and every required boss must be killed. The room journal tracks each quota. A qualifying run ends with an original three-phase Slippy fight after King Orca.
+The original rescue route anchors Neutral. Pacifist resolves all story bosses peacefully without kills. Genocide requires seven regular kills in each region before any required boss is resolved or the region is left, and every required boss must be killed. The room journal tracks each quota. A qualifying run unlocks a rest lantern in the throne room after King Orca. Talk to Slippy to start the final three-phase fight when ready.
 
 Every existing enemy has ACT actions. ACT uses a turn in any phase. Against multi-phase bosses, ACT only advances mercy in phase 3, below 30% HP. Mama and Papa teach ACT from the start. Successful sequences unlock SPARE, which earns Gold without EXP. FIGHT victories earn both. The Bag shows Gold, level, and equipped gear. Mama’s Pantry is the sole merchant for food and equipment. To shop, talk to Mama at home or interact with a physical pantry counter in the current region. Save schema 4 keeps the same storage key and migrates older saves without inventing past outcomes. Older saves with story progress or recorded EXP continue as Neutral because their earlier route history is unavailable.
 

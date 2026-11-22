@@ -615,12 +615,41 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
       while (dialogue) advance();
       for (const type of [["parents"], ["baby"], [], ["gate"], ["key1", "key2"], ["king"]][map]) {
         if (slippyPending()) failures.push("early Slippy");
+        if (type === "king") {
+          state.room = "t3";
+          if (targets().some((target) => target.id === "rest-t3"))
+            failures.push("early Slippy lantern");
+        }
         startBattle(type, type);
         finishBattle("win");
         battle.done();
         while (dialogue) advance();
       }
     }
+    updateWalkingEncounters(100);
+    if (mode !== "world" || battle || dialogue || !slippyPending())
+      failures.push("King victory does not leave time to save");
+    const useTarget = (id) => {
+      nearby = targets().find((target) => target.id === id);
+      if (!nearby) throw Error("Missing target " + id);
+      interact();
+      while (dialogue) advance();
+    };
+    state.x = 490;
+    state.y = 360;
+    state.hp = 1;
+    useTarget("rest-t3");
+    const saved = readSave(LANTERN_KEY);
+    if (saved.room !== "t3" || !saved.flags.king || saved.hp !== saved.maxHp)
+      failures.push("incorrect post-King lantern checkpoint");
+    useTarget("slippy-cage");
+    state.hp = 1;
+    hitHeart();
+    battle.done();
+    if (mode !== "world" || !slippyPending() || state.x !== saved.x ||
+        state.y !== saved.y || state.hp !== saved.maxHp)
+      failures.push("losing to Slippy did not restore the post-King checkpoint");
+    useTarget("slippy-cage");
     const phases = [];
     for (const fraction of [1, 0.6, 0.2]) {
       battle.hp = battle.maxHp * fraction;

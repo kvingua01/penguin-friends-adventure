@@ -348,6 +348,7 @@ window.PENGUIN_WORLD = (() => {
   obj("k4", "boss", 640, 280, "key1");
   obj("k8", "boss", 640, 280, "key2");
   obj("t3", "boss", 610, 280, "king");
+  obj("t3", "shrine", 490, 360, "rest-t3");
   obj("t3", "cage", 805, 320, "slippy-cage");
   rooms.h0.props.push(["igloo", 480, 170]);
   rooms.b1.props.push(["hut", 350, 185], ["hut", 680, 170]);
