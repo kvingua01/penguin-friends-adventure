@@ -205,7 +205,7 @@ function mamaShop() {
   for (const key of [...STAPLE_FOOD, ...pantryStock[state.map]]) {
     const gear = GEAR[key];
     const item = gear || items[key];
-    const price = item.price;
+    const price = state.map >= 3 ? Math.round(item.price * 1.2) : item.price;
     const row = document.createElement("div");
     row.className = "item";
     const label = document.createElement("span");

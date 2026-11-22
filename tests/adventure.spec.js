@@ -811,8 +811,8 @@ test("all six pantry counters sell stronger gear and meals as regional rewards r
   const rooms = ["h0", "b1", "c4", "g0", "k1", "t0"];
   const weapons = ["Wooden Stick", "Palmwood Staff", "Ice Dagger", "Tideglass Spear", "Snow Sword", "Royal Trident"];
   const meals = ["Boonona", "Boonona skewer", "Cove chowder", "Sea Gate stew", "Tidal hotpot", "Royal feast"];
-  const weaponPrices = [30, 60, 90, 130, 180, 245];
-  const mealPrices = [10, 13, 21, 28, 46, 58];
+  const weaponPrices = [30, 60, 90, 156, 216, 294];
+  const mealPrices = [10, 13, 21, 34, 55, 70];
   const rewards = [];
   for (let region = 0; region < rooms.length; region++) {
     rewards.push(await page.evaluate(({ region, room }) => {
