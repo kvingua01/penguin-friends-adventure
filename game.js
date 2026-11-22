@@ -42,7 +42,6 @@ const HP_PER_LEVEL = 8;
 const HP_LEVEL_UPS = 7;
 const STAPLE_FOOD = ["fish", "boonona", "soup"];
 const REGION_QUOTA = 7;
-const XP_PER_LEVEL = 8;
 const MAX_LEVEL = 15;
 const REQUIRED_BOSSES = ["parents", "baby", "gate", "key1", "key2", "king"];
 const MERCY = {
@@ -175,8 +174,14 @@ function storyRoute() {
         (boss === "parents" && state.route.bosses[boss] === "flee"))) return "pacifist";
   return "neutral";
 }
+function xpForLevel(levelNumber) {
+  const levelUps = levelNumber - 1;
+  return levelUps * (levelUps + 3);
+}
 function level(xp = state.xp) {
-  return Math.min(MAX_LEVEL, 1 + Math.floor(xp / XP_PER_LEVEL));
+  let current = 1;
+  while (current < MAX_LEVEL && xp >= xpForLevel(current + 1)) current++;
+  return current;
 }
 function maxHealth(xp) {
   return BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, level(xp) - 1);
@@ -595,7 +600,7 @@ function worldMap() {
 
 function fresh() {
   return {
-    version: 4,
+    version: 5,
     route: routeRecord(),
     gold: 0,
     gear: [],
@@ -624,7 +629,7 @@ function readSave(key = SAVE_KEY) {
     const s = JSON.parse(localStorage.getItem(key));
     if (
       !s ||
-      ![1, 2, 3, 4].includes(s.version) ||
+      ![1, 2, 3, 4, 5].includes(s.version) ||
       !Number.isInteger(s.map) ||
       s.map < 0 ||
       s.map >= maps.length ||
@@ -634,7 +639,8 @@ function readSave(key = SAVE_KEY) {
       s.x > 905 ||
       s.y < 75 ||
       s.y > 525 ||
-      s.maxHp !== (s.version < 4 ? 120 : maxHealth(s.xp)) ||
+      !Number.isFinite(s.maxHp) ||
+      s.maxHp <= 0 ||
       !Number.isFinite(s.hp) ||
       s.hp <= 0 ||
       s.hp > s.maxHp ||
@@ -646,6 +652,10 @@ function readSave(key = SAVE_KEY) {
       s.xp < 0
     )
       return null;
+    const expectedMax = s.version < 4 ? 120 :
+      s.version === 4 ? BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, Math.floor(s.xp / 8)) :
+        maxHealth(s.xp);
+    if (s.maxHp !== expectedMax) return null;
     for (const k of Object.keys(items)) {
       const count = s.inventory[k];
       if (count === undefined && !STAPLE_FOOD.includes(k)) continue;
@@ -669,11 +679,11 @@ function readSave(key = SAVE_KEY) {
       s.gear = [];
       s.equipment = { weapon: null, armor: null };
     }
-    if (s.version < 4) {
+    if (s.version < 5) {
       const previousMax = s.maxHp;
       s.maxHp = maxHealth(s.xp);
       s.hp = Math.max(1, Math.round(s.hp * s.maxHp / previousMax));
-      s.version = 4;
+      s.version = 5;
     }
     if (!s.route || !Array.isArray(s.route.kills) || s.route.kills.length !== 6 ||
         s.route.kills.some((kills) => !Number.isInteger(kills) || kills < 0) ||
@@ -3642,7 +3652,7 @@ function openSlippyChallenge(event) {
 
   const practice = { state, battle };
   state = structuredClone(state);
-  state.xp = (MAX_LEVEL - 1) * XP_PER_LEVEL;
+  state.xp = xpForLevel(MAX_LEVEL);
   state.hp = state.maxHp = maxHealth(state.xp);
   state.inventory.soup = 5;
   startBattle("slippy", "slippy-challenge", practice);

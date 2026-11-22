@@ -756,7 +756,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
     };
   });
   expect(migrated).toEqual({
-    version: 4, room: "b1", xp: 4, hp: 50, inventory: { fish: 4, boonona: 2, soup: 1 },
+    version: 5, room: "b1", xp: 4, hp: 58, inventory: { fish: 4, boonona: 2, soup: 1 },
     flags: { parents: true },
     route: { possible: false, legacy: true, kills: [0, 0, 0, 0, 0, 0], total: 0,
       spared: 0, bosses: {}, ending: null },
@@ -843,16 +843,18 @@ test("level-ups add eight HP seven times while the existing attack bonus keeps g
   const results = await page.evaluate(() => {
     const progression = [state.maxHp];
     state.hp -= 5;
-    for (let i = 0; i < 64; i++) {
+    const thresholds = [4, 10, 18, 28, 40, 54, 70, 88];
+    for (let i = 0; i < thresholds.at(-1); i++) {
       startBattle("snowcrab", "walking-encounter");
       finishBattle("win");
       battle.done();
-      if ((i + 1) % 8 === 0) progression.push(state.maxHp);
+      if (thresholds.includes(i + 1)) progression.push([level(i), level(), state.maxHp]);
     }
     return { progression, hp: state.hp, atk: attackBonus(), savedHP: readSave().hp };
   });
   expect(results).toEqual({
-    progression: [50, 58, 66, 74, 82, 90, 98, 106, 106],
+    progression: [50, [1, 2, 58], [2, 3, 66], [3, 4, 74], [4, 5, 82],
+      [5, 6, 90], [6, 7, 98], [7, 8, 106], [8, 9, 106]],
     hp: 101, atk: 8, savedHP: 101,
   });
 });
@@ -880,7 +882,7 @@ test("Snowcap Crab’s first o opens a Slippy challenge with a temporary loadout
   expect(await page.evaluate(() => ({
     enemy: battle.type, phase: battle.phase, xp: state.xp, def: defense(),
     soup: state.inventory.soup, hp: state.hp, savedXP: readSave().xp,
-  }))).toEqual({ enemy: "slippy", phase: "choice", xp: 112, def: 5, soup: 5, hp: 106, savedXP: 0 });
+  }))).toEqual({ enemy: "slippy", phase: "choice", xp: 238, def: 5, soup: 5, hp: 106, savedXP: 0 });
   await page.evaluate(() => finishBattle("win"));
   await page.getByRole("button", { name: "Continue →" }).click();
   expect(await page.evaluate(() => ({
