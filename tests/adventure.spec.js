@@ -987,7 +987,7 @@ test("camping lanes track the heart and vertical walls are 35% slower with reach
     expect(wall.maxGapShift).toBeLessThan(193 * 0.7 * 0.87);
 });
 
-test("enemy hits scale by region while Slippy keeps his original damage", async ({ page }) => {
+test("enemy hits scale by region while Slippy uses his own damage progression", async ({ page }) => {
   await begin(page);
   const damage = await page.evaluate(() => {
     state.gear = ["armor"];
@@ -1015,9 +1015,9 @@ test("enemy hits scale by region while Slippy keeps his original damage", async 
   expect(damage).toEqual({
     sentry: [3, 5, 7, 9, 11, 13],
     lateBoss: 21,
-    slippyHome: 16,
-    slippyFinale: 16,
-    slippyAssist: 8,
+    slippyHome: 19,
+    slippyFinale: 19,
+    slippyAssist: 10,
   });
 });
 

@@ -345,7 +345,7 @@ const maps = [
 ];
 const enemies = {
   slippy: {
-    name: "Slippy", hp: 720, damage: 24, color: "#a5cddd", boss: true,
+    name: "Slippy", hp: 720, damage: 27, color: "#a5cddd", boss: true,
     intro: "Slippy plants his feet. Snow begins to rise around him.", xp: 12,
   },
   snowcrab: {
