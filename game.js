@@ -5,7 +5,8 @@ const $ = (id) => document.getElementById(id),
   ctx = canvas.getContext("2d");
 const W = 960,
   H = 576,
-  SAVE_KEY = "penguin-friends-story-v1";
+  SAVE_KEY = "penguin-friends-story-v1",
+  LANTERN_KEY = SAVE_KEY + "-lantern";
 const keys = new Set(),
   movement = [
     "w",
@@ -605,9 +606,10 @@ function fresh() {
   };
 }
 state = fresh();
-function readSave() {
+let lanternCheckpoint = structuredClone(state);
+function readSave(key = SAVE_KEY) {
   try {
-    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    const s = JSON.parse(localStorage.getItem(key));
     if (
       !s ||
       ![1, 2, 3, 4].includes(s.version) ||
@@ -678,8 +680,15 @@ function readSave() {
 }
 function save(battleResult = false) {
   if ((!battleResult && mode !== "world") || dialogue || state.hp <= 0) return;
+  storeSnapshot(SAVE_KEY, state);
+}
+function recordLanternCheckpoint(snapshot) {
+  lanternCheckpoint = structuredClone(snapshot);
+  storeSnapshot(LANTERN_KEY, lanternCheckpoint);
+}
+function storeSnapshot(key, snapshot) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+    localStorage.setItem(key, JSON.stringify(snapshot));
   } catch {
     notify(
       "Browser storage unavailable. Keep this tab open to retain progress.",
@@ -810,7 +819,7 @@ function title() {
   updateHud();
   const saved = readSave();
   panel(
-    '<div class="eyebrow">48 CONNECTED ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Sprint: Shift · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Progress saves at doorways and lanterns.</small>',
+    '<div class="eyebrow">48 CONNECTED ROOMS · FOUR CHAPTERS</div><h2>A bigger world.<br>A braver little penguin.</h2><p>Explore forests, villages, caves, ruins, and royal halls as Flippy, a baby emperor penguin with a very big promise. Leave home, explore Boonona Bay, and cross the Orca Kingdom to bring your best friend back.</p><small>Move: WASD / arrows · Sprint: Shift · Talk: E / Space<br>In battle, time your strike, then move the heart to dodge.<br>M opens your room map. Rest at lanterns to set your checkpoint for defeat.</small>',
   );
   const bs = [];
   if (saved)
@@ -818,6 +827,9 @@ function title() {
       "Continue adventure",
       () => {
         state = saved;
+        const checkpoint = readSave(LANTERN_KEY);
+        if (checkpoint) lanternCheckpoint = checkpoint;
+        else recordLanternCheckpoint(saved);
         mode = "world";
         closePanel();
         updateHud();
@@ -844,6 +856,7 @@ function title() {
 }
 function newGame() {
   state = fresh();
+  recordLanternCheckpoint(state);
   mode = "world";
   closePanel();
   updateHud();
@@ -858,7 +871,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and save your journey. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -888,7 +901,7 @@ function menu() {
   panel(
     '<div class="eyebrow">TAKE A BREATHER</div><h2>Your adventure</h2><p>' +
       objective() +
-      "</p><small>Save stays on this device and browser. Live battles are not saved; reload returns to your last exploration checkpoint.</small>",
+      "</p><small>Save stays on this device and browser. Continue resumes your latest save. Defeat restores your last lantern checkpoint.</small>",
   );
   panelButtons([
     ["Resume", closePanel, true],
@@ -1139,6 +1152,7 @@ function interact() {
         ],
         () => {
           updateHud();
+          recordLanternCheckpoint(state);
           save();
           notify("Rested & saved.");
         },
@@ -1442,7 +1456,6 @@ function startBattle(type, id, practice = null) {
     phaseTime: 0,
     spawnTime: 0,
     marker: 0,
-    checkpoint: structuredClone(state),
     done: null,
   };
   $("battleControls").hidden = false;
@@ -1614,25 +1627,28 @@ function finishBattle(outcome) {
     b.message = b.parents
       ? "Your parents step aside. “Be brave. Be kind. Come home.”"
       : "You slip past while the enemy catches its breath.";
-  } else {
-    b.message =
-      "Even the bravest flippers need another chance. Retry with full health; your supplies from before this battle return.";
   }
-  if (outcome !== "lose") save(true);
+  let restored;
+  if (outcome === "lose") {
+    restored = structuredClone(lanternCheckpoint);
+    restored.assist = state.assist;
+    restored.difficulty = state.difficulty;
+    restored.hp = restored.maxHp;
+    storeSnapshot(SAVE_KEY, restored);
+    b.message = "You return to your last checkpoint. Progress since then is lost.";
+  } else save(true);
   b.done = () => {
     if (battle !== b) return;
-    if (outcome === "lose") {
-      const assist = state.assist;
-      const difficulty = state.difficulty;
-      state = b.checkpoint;
-      state.assist = assist;
-      state.difficulty = difficulty;
-      state.hp = state.maxHp;
-    }
     mode = "world";
     battle = null;
     $("battleControls").hidden = true;
-    if (walkable(state.x - 24, state.y)) state.x -= 24;
+    if (restored) {
+      state = restored;
+      nearby = null;
+      footprints.length = 0;
+      roomTransition = 1;
+      roomTitleTime = 3;
+    } else if (walkable(state.x - 24, state.y)) state.x -= 24;
     closePanel();
     updateHud();
     save();

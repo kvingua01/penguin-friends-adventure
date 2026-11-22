@@ -28,9 +28,9 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 - Sound starts off; its button enables the original generated melody and effects.
 - Assist mode reduces projectile speed, increases heart speed, and reduces damage without changing the story.
 
-Rest lanterns restore full health and save the game. Defeat returns you to the pre-battle exploration checkpoint and restores its supplies and health. Mama sells all food beyond the starting provisions.
+Rest lanterns restore full health and save the game. Defeat returns you to the last rest lantern and rolls back all gameplay progress since then. A new adventure starts with a checkpoint at home. For saves created before lantern checkpoints were tracked, the first continued save serves as the checkpoint until you use a lantern. Mama sells all food beyond the starting provisions.
 
-Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Reloading during an unresolved battle resumes the exploration checkpoint. Resolved rewards and boss outcomes are saved when the result is shown.
+Saves use this browser's local storage on the current website origin. They do not transfer between browsers, devices, the Railway URL, and the custom domain. Clearing site data removes the save. Older saves migrate to the starting room of their current region while keeping story flags and inventory. Reloading during an unresolved battle resumes the latest exploration save. A defeat immediately replaces that save with the restored lantern snapshot. Rewards and boss outcomes remain subject to lantern rollback.
 
 ## Expanded world and combat
 

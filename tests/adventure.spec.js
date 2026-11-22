@@ -956,3 +956,59 @@ test("enemy hits scale by region while Slippy keeps his original damage", async 
     slippyAssist: 8,
   });
 });
+
+test("defeat restores the entire last lantern snapshot across reloads", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => {
+    changeMap(1);
+    state.gold = 25;
+    state.flags.parents = true;
+  });
+  await interactWith(page, "rest-b0");
+  const checkpoint = await page.evaluate(() => readSave(LANTERN_KEY));
+  for (const [room, id] of [["b2", "fruit1"], ["b5", "fruit2"], ["b7", "fruit3"]]) {
+    await go(page, room);
+    await interactWith(page, id);
+  }
+  await go(page, "b9");
+  await page.evaluate(() => {
+    state.gold += 100;
+    state.xp = 8;
+    state.hp = state.maxHp = maxHealth(state.xp);
+    state.inventory.fish--;
+    state.gear.push("staff");
+    state.equipment.weapon = "staff";
+    state.route.possible = false;
+    state.route.kills[1] = 2;
+    state.route.total = 2;
+    state.encounterRooms = 4;
+    save();
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Continue adventure" }).click();
+  expect(await page.evaluate(() => [state.gold, fruitCount()])).toEqual([125, 3]);
+  await interactWith(page, "baby");
+  await page.evaluate(() => {
+    state.hp = 1;
+    hitHeart();
+  });
+  expect(await page.evaluate(() => readSave())).toEqual(checkpoint);
+  await page.getByRole("button", { name: "Continue →" }).click();
+  expect(await page.evaluate(() => state)).toEqual(checkpoint);
+});
+
+test("defeat before the first lantern returns a new adventure to its starting state", async ({ page }) => {
+  await begin(page);
+  const start = await page.evaluate(() => state);
+  await go(page, "h1");
+  await page.evaluate(() => {
+    state.gold = 16;
+    state.flags.metSlippy = true;
+    startBattle("snowcrab", "walking-encounter");
+    state.hp = 1;
+    hitHeart();
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Continue adventure" }).click();
+  expect(await page.evaluate(() => state)).toEqual(start);
+});
