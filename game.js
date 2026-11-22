@@ -176,15 +176,15 @@ function storyRoute() {
 }
 function xpForLevel(levelNumber) {
   const levelUps = levelNumber - 1;
-  return levelUps * (levelUps + 3);
+  return Math.ceil(levelUps * 4 + 1.25 * levelUps * (levelUps - 1) / 2);
 }
-function level(xp = state.xp) {
+function level(xp = state.xp, threshold = xpForLevel) {
   let current = 1;
-  while (current < MAX_LEVEL && xp >= xpForLevel(current + 1)) current++;
+  while (current < MAX_LEVEL && xp >= threshold(current + 1)) current++;
   return current;
 }
-function maxHealth(xp) {
-  return BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, level(xp) - 1);
+function maxHealth(xp, threshold = xpForLevel) {
+  return BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, level(xp, threshold) - 1);
 }
 function gearBonus(slot) {
   return GEAR[state.equipment[slot]]?.bonus || 0;
@@ -600,7 +600,7 @@ function worldMap() {
 
 function fresh() {
   return {
-    version: 5,
+    version: 6,
     route: routeRecord(),
     gold: 0,
     gear: [],
@@ -629,7 +629,7 @@ function readSave(key = SAVE_KEY) {
     const s = JSON.parse(localStorage.getItem(key));
     if (
       !s ||
-      ![1, 2, 3, 4, 5].includes(s.version) ||
+      ![1, 2, 3, 4, 5, 6].includes(s.version) ||
       !Number.isInteger(s.map) ||
       s.map < 0 ||
       s.map >= maps.length ||
@@ -653,8 +653,9 @@ function readSave(key = SAVE_KEY) {
     )
       return null;
     const expectedMax = s.version < 4 ? 120 :
-      s.version === 4 ? BASE_HP + HP_PER_LEVEL * Math.min(HP_LEVEL_UPS, Math.floor(s.xp / 8)) :
-        maxHealth(s.xp);
+      s.version === 4 ? maxHealth(s.xp, (n) => (n - 1) * 8) :
+        s.version === 5 ? maxHealth(s.xp, (n) => (n - 1) * (n + 2)) :
+          maxHealth(s.xp);
     if (s.maxHp !== expectedMax) return null;
     for (const k of Object.keys(items)) {
       const count = s.inventory[k];
@@ -679,11 +680,11 @@ function readSave(key = SAVE_KEY) {
       s.gear = [];
       s.equipment = { weapon: null, armor: null };
     }
-    if (s.version < 5) {
+    if (s.version < 6) {
       const previousMax = s.maxHp;
       s.maxHp = maxHealth(s.xp);
       s.hp = Math.max(1, Math.round(s.hp * s.maxHp / previousMax));
-      s.version = 5;
+      s.version = 6;
     }
     if (!s.route || !Array.isArray(s.route.kills) || s.route.kills.length !== 6 ||
         s.route.kills.some((kills) => !Number.isInteger(kills) || kills < 0) ||

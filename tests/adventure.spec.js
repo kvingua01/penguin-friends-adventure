@@ -756,7 +756,7 @@ test("version 2 saves preserve inventory and story without restoring removed che
     };
   });
   expect(migrated).toEqual({
-    version: 5, room: "b1", xp: 4, hp: 58, inventory: { fish: 4, boonona: 2, soup: 1 },
+    version: 6, room: "b1", xp: 4, hp: 58, inventory: { fish: 4, boonona: 2, soup: 1 },
     flags: { parents: true },
     route: { possible: false, legacy: true, kills: [0, 0, 0, 0, 0, 0], total: 0,
       spared: 0, bosses: {}, ending: null },
@@ -843,7 +843,7 @@ test("level-ups add eight HP seven times while the existing attack bonus keeps g
   const results = await page.evaluate(() => {
     const progression = [state.maxHp];
     state.hp -= 5;
-    const thresholds = [4, 10, 18, 28, 40, 54, 70, 88];
+    const thresholds = [4, 10, 16, 24, 33, 43, 55, 67];
     for (let i = 0; i < thresholds.at(-1); i++) {
       startBattle("snowcrab", "walking-encounter");
       finishBattle("win");
@@ -882,7 +882,7 @@ test("Snowcap Crab’s first o opens a Slippy challenge with a temporary loadout
   expect(await page.evaluate(() => ({
     enemy: battle.type, phase: battle.phase, xp: state.xp, def: defense(),
     soup: state.inventory.soup, hp: state.hp, savedXP: readSave().xp,
-  }))).toEqual({ enemy: "slippy", phase: "choice", xp: 238, def: 5, soup: 5, hp: 106, savedXP: 0 });
+  }))).toEqual({ enemy: "slippy", phase: "choice", xp: 170, def: 5, soup: 5, hp: 106, savedXP: 0 });
   await page.evaluate(() => finishBattle("win"));
   await page.getByRole("button", { name: "Continue →" }).click();
   expect(await page.evaluate(() => ({
