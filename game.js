@@ -221,8 +221,16 @@ function mamaShop() {
   panelButtons([["Exit shop", closePanel, true]]);
 }
 
+function actReady(b) {
+  return !b.boss || b.parents || b.phaseLevel === 3;
+}
 function actMenu() {
   if (battle.phase !== "choice") return;
+  if (!actReady(battle)) {
+    battle.message = "ACT unlocks in phase 3. Get the boss below 30% HP.";
+    battleUI();
+    return;
+  }
   if (battle.type === "slippy") {
     battle.message = "You say his name. “I remember who you were,” Slippy says. “I know who you are now.”";
     beginDodge();
@@ -242,7 +250,7 @@ function actMenu() {
 }
 function act(index) {
   const b = battle;
-  if (b.phase !== "choice" || b.type === "slippy") return;
+  if (b.phase !== "choice" || !actReady(b) || b.type === "slippy") return;
   const choices = MERCY[b.type];
   const goal = choices.length - 1;
   if (!b.spareable) {
@@ -266,6 +274,7 @@ function spare() {
   else {
     battle.message = battle.type === "slippy" ?
       "Slippy shakes his head. “You don’t get to walk away from this.”" :
+      !actReady(battle) ? "Get the boss to phase 3 before trying ACT and SPARE." :
       battle.name + " isn’t ready to stand down. Try ACT.";
     beginDodge();
   }
@@ -871,7 +880,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. Multi-phase bosses only respond to ACT in phase 3, below 30% HP. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1398,7 +1407,7 @@ function ending() {
   const outcome = state.route.ending ||= storyRoute();
   save();
   if (outcome === "pacifist") {
-    panel("<h2>Room for one more</h2><p>Slippy takes Flippy’s flipper. “You got through a whole kingdom without hurting anyone who stood in your way. You even listened to the King.”</p><p>The King leaves the hall to see Pippy’s boat off. He asks if he can join them for lunch one day. This time, he waits for the answer.</p>");
+    panel("<h2>Room for one more</h2><p>Slippy takes Flippy’s flipper. “You got through a whole kingdom without taking a single life. You even listened to the King.”</p><p>The King leaves the hall to see Pippy’s boat off. He asks if he can join them for lunch one day. This time, he waits for the answer.</p>");
   } else if (outcome === "genocide") {
     panel("<h2>No one on the shore</h2><p>The snow settles on two sets of tracks. Only one set leads out of the throne room.</p><p>Flippy reaches the dock and looks for the little boat. The wind moves across the sea. No one calls his name.</p>");
   } else {

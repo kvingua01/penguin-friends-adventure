@@ -151,6 +151,14 @@ async function completeStory(page, peaceful) {
     }
     await page.evaluate((type) => {
       startBattle(type, type);
+      while (battle.phaseLevel !== 3) {
+        battle.phase = "strike";
+        battle.marker = 0.5;
+        finishStrike();
+        if (battle.hp <= 0) throw Error("Could not reach phase 3 alive: " + type);
+        battle.phaseTime = battle.duration;
+        updateBattle(0);
+      }
       for (let index = 0; !battle.spareable; index++) {
         if (index >= MERCY[type].length) throw Error("Could not spare " + type);
         act(index);
@@ -533,6 +541,23 @@ test("each regular enemy and story boss can be spared for Gold without EXP", asy
       if (battle.phase !== "dodge") failures.push(type + ": unearned spare");
       battle.phaseTime = battle.duration;
       updateBattle(0);
+      if (battle.boss && !battle.parents) {
+        for (const fraction of [0.95, 0.5]) {
+          battle.hp = battle.maxHp * fraction;
+          beginDodge();
+          battle.phaseTime = battle.duration;
+          updateBattle(0);
+          actMenu();
+          act(0);
+          if (battle.acts || battle.spareable || battle.phase !== "choice" ||
+              !battle.message.includes("phase 3"))
+            failures.push(type + ": ACT advanced before phase 3");
+        }
+        battle.hp = battle.maxHp * 0.29;
+        beginDodge();
+        battle.phaseTime = battle.duration;
+        updateBattle(0);
+      }
       for (let index = 0; index < actions.length - 1 && !battle.spareable; index++) {
         act(index);
         battle.phaseTime = battle.duration;
@@ -595,7 +620,8 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
       battle.phaseTime = battle.duration;
       updateBattle(0);
       actMenu();
-      if (battle.spareable || battle.phase !== "dodge") failures.push("Slippy ACT");
+      const expected = battle.phaseLevel === 3 ? "dodge" : "choice";
+      if (battle.spareable || battle.phase !== expected) failures.push("Slippy ACT");
       battle.phaseTime = battle.duration;
       updateBattle(0);
     }

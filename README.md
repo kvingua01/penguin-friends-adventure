@@ -54,7 +54,7 @@ Regular enemies appear automatically after a few steps (90 world pixels) in ever
 ## Routes and shops
 
 - **Neutral** follows the rescue story with reactions to your battle outcomes.
-- **Pacifist** requires peaceful resolutions for the story bosses and zero kills. You can avoid or flee optional encounters.
+- **Pacifist** requires peaceful resolutions for the story bosses and zero kills. Get multi-phase bosses below 30% HP to unlock ACT, then spare them. Mama and Papa’s tutorial allows ACT from the start. You can avoid or flee optional encounters.
 - **Genocide** requires seven regular kills in each of the six regions before resolving that region’s bosses or leaving. Spare any opponent or pass a required gate early and the route closes. Exhausted regions no longer spawn regular encounters while the route is open. Track progress in the map journal. A fully qualifying run unlocks Slippy after King Orca.
 
 Battle victories award more Gold and EXP in later regions. Each region after Frostbell adds 2 more enemy damage per hit before defense. Slippy uses his original damage. Sparing awards Gold. Mama’s Pantry has a shop in each region, with better and pricier local weapons, armor, and meals. Basic foods remain available everywhere. Talk to Mama at home or walk up to a local pantry counter and press E, Space, or INTERACT to shop. The counter at home stays open if Mama is gone. Flippy starts at 50 HP. The first seven level-ups add 8 maximum HP each, up to 106 HP. Level-based attack bonuses continue beyond the HP cap. Open the Bag outside of battle to equip or remove one weapon and one armor piece.
