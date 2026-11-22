@@ -1047,3 +1047,47 @@ test("defeat before the first lantern returns a new adventure to its starting st
   await page.getByRole("button", { name: "Continue adventure" }).click();
   expect(await page.evaluate(() => state)).toEqual(start);
 });
+
+test("battle actions, ACT, strikes, and results work with arrows and Enter", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => startBattle("snowcrab", "keyboard-actions"));
+  await expect(page.getByRole("button", { name: "FIGHT", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("button", { name: "SPARE", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "ACT · Snowcap Crab" })).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  const second = await page.evaluate(() => MERCY.snowcrab[1][0]);
+  await expect(page.getByRole("button", { name: second, exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => battle.phase)).toBe("dodge");
+  await endTurn(page);
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => battle.phase)).toBe("strike");
+  await page.evaluate(() => { battle.hp = 10; });
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => battle.phase)).toBe("result");
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => mode)).toBe("world");
+});
+
+test("the arena, battle menu, and touch controls fit desktop and phone viewports", async ({ page }) => {
+  await begin(page);
+  await page.evaluate(() => startBattle("snowcrab", "viewport-actions"));
+  for (const [width, height] of [[1280, 600], [390, 700], [700, 390]]) {
+    await page.setViewportSize({ width, height });
+    const layout = await page.evaluate(() => {
+      const rects = ["#game", "#battleActions", ".touch"].map((selector) =>
+        document.querySelector(selector).getBoundingClientRect());
+      return {
+        visible: rects.every((r) => r.top >= 0 && r.bottom <= innerHeight + 1 &&
+          r.left >= 0 && r.right <= innerWidth + 1 && r.height > 0 && r.width > 0),
+        pageScroll: document.documentElement.scrollHeight - innerHeight,
+      };
+    });
+    expect(layout.visible).toBe(true);
+    expect(layout.pageScroll).toBeLessThanOrEqual(1);
+  }
+});

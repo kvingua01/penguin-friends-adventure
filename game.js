@@ -244,6 +244,7 @@ function actMenu() {
     }]),
     ["Back", closePanel],
   ]);
+  $("overlay").querySelector("button").focus();
 }
 function act(index) {
   const b = battle;
@@ -882,7 +883,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. You can try ACT in any phase. Multi-phase bosses only respond in phase 3, below 30% HP. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>Use the arrow keys to select a battle action and Enter to confirm. FIGHT starts a moving strike marker. Press Enter, E, Space, or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. You can try ACT in any phase. Multi-phase bosses only respond in phase 3, below 30% HP. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
@@ -1048,6 +1049,7 @@ function inventory(inBattle = false) {
       }));
   }
   panelButtons([["Back", closePanel, true]]);
+  if (inBattle) $("overlay").querySelector("button:not(:disabled)").focus();
 }
 function visibleNPCs(room) {
   return room.npcs.filter(([, , , id]) => {
@@ -1495,7 +1497,7 @@ function battleUI() {
         battle.phaseTime = 0;
         battle.marker = 0;
         battle.message =
-          "Press E / Space or STRIKE when the marker reaches the center.";
+          "Press Enter, E, Space, or STRIKE when the marker reaches the center.";
         battleUI();
       }),
     );
@@ -1514,8 +1516,9 @@ function battleUI() {
     );
     flee.disabled = !fleeUnlocked();
     if (fleeAllowed()) a.append(flee);
+    a.querySelector("button").focus({ preventScroll: true });
   } else if (battle.phase === "strike")
-    a.append(button("STRIKE · E / SPACE", finishStrike, true));
+    a.append(button("STRIKE · ENTER", finishStrike, true));
   else if (battle.phase === "dodge") {
     const b = button("MOVE THE HEART · DODGE", () => {});
     b.disabled = true;
@@ -3900,9 +3903,37 @@ function tick(now) {
   else drawWorld();
   requestAnimationFrame(tick);
 }
+function handleBattleSelection(event, key) {
+  if (mode !== "battle" || dialogue) return false;
+  const overlay = $("overlay");
+  const inMenu = !overlay.hidden || battle.phase === "choice";
+  const direction = { arrowleft: -1, arrowup: -1, arrowright: 1, arrowdown: 1 }[key];
+  if (key !== "enter" && (!inMenu || !direction)) return false;
+
+  event.preventDefault();
+  if (key === "enter" && event.repeat) return true;
+  if (!inMenu) {
+    interact();
+    return true;
+  }
+
+  const root = overlay.hidden ? $("battleActions") : overlay;
+  const buttons = [...root.querySelectorAll("button:not(:disabled)")];
+  if (!buttons.length) return true;
+  const active = buttons.indexOf(document.activeElement);
+  if (key === "enter") buttons[Math.max(active, 0)].click();
+  else {
+    const next = active < 0
+      ? (direction > 0 ? 0 : buttons.length - 1)
+      : (active + direction + buttons.length) % buttons.length;
+    buttons[next].focus();
+  }
+  return true;
+}
 window.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT") return;
   const k = e.key.toLowerCase();
+  if (handleBattleSelection(e, k)) return;
   if (!$("overlay").hidden) {
     if (k === "escape" && mode !== "title") {
       e.preventDefault();

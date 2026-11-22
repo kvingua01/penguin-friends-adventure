@@ -476,3 +476,79 @@ footer {
     min-width: 82px;
   }
 }
+
+/* Keep the whole battle and its touch controls inside the visible viewport. */
+body:has(#battleControls:not([hidden])) {
+  min-height: 0;
+  overflow: hidden;
+}
+body:has(#battleControls:not([hidden])) main {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  height: 100dvh;
+  padding: 6px max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+body:has(#battleControls:not([hidden])) :is(header, .objective, .under, footer, #mapButton, #inventoryButton) {
+  display: none;
+}
+body:has(#battleControls:not([hidden])) .hud {
+  padding: 5px 8px;
+}
+body:has(#battleControls:not([hidden])) #stage {
+  container-type: size;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+body:has(#battleControls:not([hidden])) canvas {
+  width: min(100cqw, calc(100cqh * 5 / 3));
+  height: auto;
+}
+body:has(#battleControls:not([hidden])) .touch {
+  padding-top: 4px;
+}
+#battleControls {
+  padding: 6px 8px;
+}
+#battleActions {
+  gap: 4px;
+  margin-top: 4px;
+}
+#battleActions button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 7px;
+}
+#battleActions button:focus,
+body:has(#battleControls:not([hidden])) .panel button:focus {
+  outline: 2px solid #ffdb8b;
+  outline-offset: -2px;
+  background: #514836;
+  color: #fff0be;
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  body:has(#battleControls:not([hidden])) main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  body:has(#battleControls:not([hidden])) .hud {
+    grid-area: 1 / 1 / 2 / -1;
+  }
+  body:has(#battleControls:not([hidden])) #stage {
+    grid-area: 2 / 1;
+  }
+  #battleControls {
+    grid-area: 3 / 1 / 4 / -1;
+  }
+  body:has(#battleControls:not([hidden])) .touch {
+    grid-area: 2 / 2;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 0 0 6px;
+  }
+  body:has(#battleControls:not([hidden])) #interactButton {
+    min-width: 0;
+    min-height: 36px;
+  }
+}

@@ -21,6 +21,7 @@ The server binds `0.0.0.0` on `process.env.PORT || 8080`. Railway's start comman
 - E / Space / INTERACT: talk, inspect objects, advance dialogue, or stop the strike marker.
 - M / Map: open the region journal and see visited rooms, connections, and your current position. Use E at doorways to enter connected rooms.
 - I / Bag: healing inventory. Escape / Menu: pause, instructions, assist mode, and saving.
+- In battle, use the arrow keys to select an action and Enter to confirm.
 - FIGHT: stop the marker near the center for a strong hit, then move the heart to dodge until the attack timer ends (about 7 seconds for regular enemies, 8–10 seconds for bosses).
 - ITEM: consume food and take an enemy attack turn.
 - FLEE: locked until 28% of the enemy's original health has been dealt as damage. Major bosses cannot be fled from, except the parents.
