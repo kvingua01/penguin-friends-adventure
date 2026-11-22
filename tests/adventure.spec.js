@@ -548,10 +548,20 @@ test("each regular enemy and story boss can be spared for Gold without EXP", asy
           battle.phaseTime = battle.duration;
           updateBattle(0);
           actMenu();
-          act(0);
-          if (battle.acts || battle.spareable || battle.phase !== "choice" ||
-              !battle.message.includes("phase 3"))
-            failures.push(type + ": ACT advanced before phase 3");
+          const firstAct = [...$("overlay").querySelectorAll("button")]
+            .find((button) => button.textContent === actions[0][0]);
+          if (!firstAct || firstAct.disabled) {
+            failures.push(type + ": early ACT is unavailable");
+            closePanel();
+            continue;
+          }
+          const turn = battle.turn;
+          firstAct.click();
+          if (battle.acts || battle.spareable || battle.annoyed || battle.phase !== "dodge" ||
+              battle.turn !== turn + 1 || !battle.message.includes("phase 3"))
+            failures.push(type + ": early ACT did not use a turn without progressing mercy");
+          battle.phaseTime = battle.duration;
+          updateBattle(0);
         }
         battle.hp = battle.maxHp * 0.29;
         beginDodge();
@@ -620,8 +630,7 @@ test("regional grinding exhausts each pool and unlocks Slippy after King Orca", 
       battle.phaseTime = battle.duration;
       updateBattle(0);
       actMenu();
-      const expected = battle.phaseLevel === 3 ? "dodge" : "choice";
-      if (battle.spareable || battle.phase !== expected) failures.push("Slippy ACT");
+      if (battle.spareable || battle.phase !== "dodge") failures.push("Slippy ACT");
       battle.phaseTime = battle.duration;
       updateBattle(0);
     }

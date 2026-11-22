@@ -226,13 +226,10 @@ function actReady(b) {
 }
 function actMenu() {
   if (battle.phase !== "choice") return;
-  if (!actReady(battle)) {
-    battle.message = "ACT unlocks in phase 3. Get the boss below 30% HP.";
-    battleUI();
-    return;
-  }
   if (battle.type === "slippy") {
-    battle.message = "You say his name. “I remember who you were,” Slippy says. “I know who you are now.”";
+    battle.message = actReady(battle)
+      ? "You say his name. “I remember who you were,” Slippy says. “I know who you are now.”"
+      : "You say his name. Slippy keeps his eyes on the ice.";
     beginDodge();
     return;
   }
@@ -250,7 +247,12 @@ function actMenu() {
 }
 function act(index) {
   const b = battle;
-  if (b.phase !== "choice" || !actReady(b) || b.type === "slippy") return;
+  if (b.phase !== "choice" || b.type === "slippy") return;
+  if (!actReady(b)) {
+    b.message = b.name + " ignores your gesture. ACT can help once the fight reaches phase 3.";
+    beginDodge();
+    return;
+  }
   const choices = MERCY[b.type];
   const goal = choices.length - 1;
   if (!b.spareable) {
@@ -880,7 +882,7 @@ function newGame() {
 }
 function instructions() {
   panel(
-    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. Multi-phase bosses only respond to ACT in phase 3, below 30% HP. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
+    "<h2>A field guide for little flippers</h2><p>Walk with WASD, arrow keys, or the on-screen direction pad. Hold Shift to sprint at double speed while exploring. Stand near a character or object and press E / Space or INTERACT. Regular battles start automatically after a few steps in every fifth room you enter, including villages and rest areas. Approach bosses to face them.</p><p>FIGHT starts a moving strike marker. Press E / Space or STRIKE near the center for more damage. Then move your heart inside the battle box until the attack timer ends. Bosses change attacks mid-turn in later phases.</p><p>ACT lets you talk or take other actions. You can try ACT in any phase. Multi-phase bosses only respond in phase 3, below 30% HP. When an enemy’s name turns yellow, use SPARE. ITEM consumes a turn. FLEE unlocks after enough damage in regular battles, or after talking to your parents.</p><p>Rest lanterns fully heal you and set a checkpoint. If you fall in battle, progress since that checkpoint is undone. Mama’s Pantry has a shop in every region. Walk up to the local counter and interact to shop. Assist mode slows attacks and reduces incoming damage. No story content changes.</p>",
   );
   panelButtons([["Back", () => (mode === "title" ? title() : menu()), true]]);
 }
